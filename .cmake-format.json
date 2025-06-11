@@ -1,0 +1,14 @@
+{
+  "format": {
+    "line_width": 120,
+    "tab_size": 2,
+    "max_subgroups_hwrap": 5,
+    "max_pargs_hwrap": 5
+  },
+  "markup": {
+    "first_comment_is_literal": true
+  },
+  "lint": {
+    "disabled_codes": []
+  }
+}

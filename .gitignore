@@ -1,0 +1,36 @@
+# Build directories
+**/build/
+
+# Cache directories
+demo_cache/
+
+# Cache directories
+demo_cache/
+
+# Editor files
+*.swp
+*~
+.history/
+.vscode/
+.vs/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Pre-commit
+.pre-commit-cache/
+
+# Generated files
+*.png

@@ -22,7 +22,7 @@ This test verifies:
 - Pipeline uses both correctly
 """
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pytest
 from utils.model_registry import registry
@@ -53,7 +53,7 @@ class TestConsolidated:
         assert canonical_path.parent.exists(), "Parent directories should be created"
 
         # Test that path contains expected structure
-        assert "shared/engines" in str(canonical_path), "Should use shared engines directory"
+        assert "shared/engines" in str(PurePosixPath(canonical_path)), "Should use shared engines directory"
         assert model_id in str(canonical_path), "Should contain model ID"
         assert "fp16" in str(canonical_path), "Should contain precision"
 
@@ -94,6 +94,6 @@ class TestConsolidated:
         assert metadata_path.suffix == ".json", "Metadata path should have .json extension"
 
         # Verify hierarchical structure
-        assert "shared/onnx" in str(onnx_path), "ONNX should be in shared/onnx"
-        assert "shared/engines" in str(engine_path), "Engine should be in shared/engines"
-        assert "shared/engines" in str(metadata_path), "Metadata should be in shared/engines"
+        assert "shared/onnx" in str(PurePosixPath(onnx_path)), "ONNX should be in shared/onnx"
+        assert "shared/engines" in str(PurePosixPath(engine_path)), "Engine should be in shared/engines"
+        assert "shared/engines" in str(PurePosixPath(metadata_path)), "Metadata should be in shared/engines"

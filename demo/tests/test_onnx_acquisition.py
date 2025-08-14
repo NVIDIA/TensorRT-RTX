@@ -72,9 +72,9 @@ class TestONNXAcquisition:
         for expected_file in expected_files:
             assert expected_file in shared_file_names, f"Expected file {expected_file} should be copied"
 
-        assert len(shared_files) == len(
-            expected_files
-        ), f"Expected {len(expected_files)} files, got {len(shared_files)}"
+        assert len(shared_files) == len(expected_files), (
+            f"Expected {len(expected_files)} files, got {len(shared_files)}"
+        )
 
     @patch("utils.path_manager.snapshot_download")
     def test_remote_download_with_nested_structure(self, mock_snapshot_download, path_manager: PathManager):

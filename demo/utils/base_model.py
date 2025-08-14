@@ -15,7 +15,7 @@
 
 
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from utils.base_params import BaseModelParams
 from utils.model_registry import registry
@@ -38,7 +38,7 @@ class BaseModel:
         self.model_params = model_params
         self.hf_token = hf_token
 
-    def validate_io_names(self, precision: str, input_names: List, output_names: Optional[List] = None) -> None:
+    def validate_io_names(self, precision: str, input_names: list, output_names: Optional[list] = None) -> None:
         """Validate input and output names"""
         expected_inputs, expected_outputs = registry.get_io_names(self.name, precision)
 
@@ -46,22 +46,21 @@ class BaseModel:
 
         # Validate input names
         assert set(input_names) == set(expected_inputs), (
-            f"Input name mismatch for {self.name}[{precision}]: " f"expected {expected_inputs}, got {input_names}"
+            f"Input name mismatch for {self.name}[{precision}]: expected {expected_inputs}, got {input_names}"
         )
 
         # Validate output names if provided
         if output_names is not None:
             assert set(output_names) == set(expected_outputs), (
-                f"Output name mismatch for {self.name}[{precision}]: "
-                f"expected {expected_outputs}, got {output_names}"
+                f"Output name mismatch for {self.name}[{precision}]: expected {expected_outputs}, got {output_names}"
             )
 
     @abstractmethod
-    def get_input_profile(self, *args, **kwargs) -> Dict[str, Any]:
+    def get_input_profile(self, *args, **kwargs) -> dict[str, Any]:
         """Return TensorRT input profile for dynamic shapes"""
         pass
 
     @abstractmethod
-    def get_shape_dict(self, *args, **kwargs) -> Dict[str, Any]:
+    def get_shape_dict(self, *args, **kwargs) -> dict[str, Any]:
         """Return shape dictionary for tensor allocation"""
         pass

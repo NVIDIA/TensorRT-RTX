@@ -28,10 +28,10 @@ setup(
         "tqdm>=4.67.1",
         "pillow",
         "numpy",
-        "cuda-python",
+        "cuda-python<13.0.0",
         "polygraphy>=0.49.24",
         "packaging",
-        "tensorrt-rtx>=1.0.0",
+        "tensorrt-rtx>=1.1.0",
         "accelerate",
         "protobuf",
         "sentencepiece",
@@ -39,8 +39,7 @@ setup(
     extras_require={
         "dev": [
             "pre-commit",
-            "black",
-            "isort",
+            "ruff",
             "flake8",
         ],
         "jupyter": [

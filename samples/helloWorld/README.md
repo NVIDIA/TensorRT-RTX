@@ -23,7 +23,7 @@ run a simple neural network. The sample shows basic concepts such as:
 On Windows, add the TensorRT for RTX `lib` directory to your `PATH` environment variable:
 
 ```powershell
-$Env:PATH += ";${PATH_TO_TRT_RTX}\lib"
+$Env:PATH += ";$Env:PATH_TO_TRT_RTX\lib"
 ```
 
 On Linux, add the TensorRT for RTX `lib` directory to your `LD_LIBRARY_PATH` environment variable:

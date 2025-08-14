@@ -17,7 +17,6 @@
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, List
 
 import numpy as np
 
@@ -30,7 +29,7 @@ class InferenceTimingData:
     """Container for detailed inference timing data using CUDA events."""
 
     # Pipeline timings (in milliseconds) - maps model type to list of execution times
-    pipeline_times: Dict[str, List[float]] = field(default_factory=lambda: defaultdict(list))
+    pipeline_times: dict[str, list[float]] = field(default_factory=lambda: defaultdict(list))
 
     # Total times
     total_inference_time: float = 0.0
@@ -42,7 +41,7 @@ class InferenceTimingData:
     batch_size: int = 0
     guidance_scale: float = 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Return timing data as a parseable dictionary."""
         # Calculate total end-to-end runtime
         total_e2e = self.total_inference_time

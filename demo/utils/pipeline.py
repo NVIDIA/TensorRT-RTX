@@ -23,7 +23,7 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Optional
 
 import cuda.bindings.runtime as cudart
 import torch
@@ -199,7 +199,7 @@ class Pipeline(ABC):
         """Reset timing data for a new inference run."""
         self.timing_data = InferenceTimingData()
 
-    def get_model_names(self) -> List:
+    def get_model_names(self) -> list:
         """Return list of model names used by this pipeline"""
         raise NotImplementedError("Subclasses must implement get_model_names")
 
@@ -212,7 +212,7 @@ class Pipeline(ABC):
         """Load TensorRT engines, building if necessary."""
         raise NotImplementedError("Subclasses must implement load_engines")
 
-    def activate_engines(self, shared_device_memory: Optional[int] = None) -> Dict[str, float]:
+    def activate_engines(self, shared_device_memory: Optional[int] = None) -> dict[str, float]:
         """Activate all engines (load into memory)"""
         jit_times = {}
 
@@ -265,15 +265,15 @@ class Pipeline(ABC):
             total_engine_memory += engine_memory
             max_device_memory = max(max_device_memory, engine_memory)
 
-            logger.debug(f"[MEMORY]   {model_name}: {engine_memory / (1024 ** 3):.3f} GB")
+            logger.debug(f"[MEMORY]   {model_name}: {engine_memory / (1024**3):.3f} GB")
 
         workspace_savings = (total_engine_memory - max_device_memory) / (1024**3)
-        logger.debug(f"[MEMORY] Shared workspace (max): {max_device_memory / (1024 ** 3):.3f} GB")
+        logger.debug(f"[MEMORY] Shared workspace (max): {max_device_memory / (1024**3):.3f} GB")
         logger.debug(f"[MEMORY] Memory savings: {workspace_savings:.3f} GB")
 
         return max_device_memory
 
-    def run_engine(self, model_name: str, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def run_engine(self, model_name: str, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         """Run inference on a specific engine"""
         engine = self.engines[model_name]
         return engine.infer(inputs, self.stream, use_cuda_graph=False)
@@ -331,7 +331,7 @@ class Pipeline(ABC):
     def __del__(self):
         self.cleanup()
 
-    def calculate_total_gpu_vram_usage(self) -> Dict:
+    def calculate_total_gpu_vram_usage(self) -> dict:
         """Calculate total GPU VRAM usage estimate using formula: weights + workspace + buffers"""
         # Model weights (serialized engine sizes)
         total_weights = 0

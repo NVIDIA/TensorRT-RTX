@@ -18,6 +18,8 @@ project(TensorRT_RTX_samples LANGUAGES CXX CUDA)
 
 # Options for TensorRT-RTX paths
 set(TRTRTX_INSTALL_DIR "" CACHE PATH "Path to TensorRT-RTX install directory")
+# Resolve absolute path for TRTRTX_INSTALL_DIR
+get_filename_component(TRTRTX_INSTALL_DIR "${TRTRTX_INSTALL_DIR}" REALPATH)
 set(TRTRTX_INCLUDE_DIR "${TRTRTX_INSTALL_DIR}/include" CACHE PATH "Path to TensorRT-RTX include directory")
 set(TRTRTX_LIB_DIR "${TRTRTX_INSTALL_DIR}/lib" CACHE PATH "Path to TensorRT-RTX library directory")
 

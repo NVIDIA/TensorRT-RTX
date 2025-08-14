@@ -30,7 +30,7 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional, Set, Union
+from typing import NamedTuple, Optional, Union
 
 from huggingface_hub import snapshot_download
 
@@ -92,12 +92,12 @@ class PathManager:
 
         # State file for persistent tracking
         self.state_file = self.cache_dir / ".cache_state.json"
-        self.pipeline_states: Dict[str, Dict[str, ModelConfig]] = self._load_pipeline_states()
+        self.pipeline_states: dict[str, dict[str, ModelConfig]] = self._load_pipeline_states()
 
         logger.info(f"PathManager initialized - Cache: {self.cache_dir}, Mode: {self.cache_mode}")
         logger.debug(f"Loaded {len(self.pipeline_states)} pipeline states from cache")
 
-    def _ensure_directories_exist(self, directories: List[Path]) -> None:
+    def _ensure_directories_exist(self, directories: list[Path]) -> None:
         """Ensure all directories exist."""
         for directory in directories:
             directory.mkdir(parents=True, exist_ok=True)
@@ -114,7 +114,7 @@ class PathManager:
         model_dir.mkdir(parents=True, exist_ok=True)
         return model_dir
 
-    def _load_pipeline_states(self) -> Dict[str, Dict[str, ModelConfig]]:
+    def _load_pipeline_states(self) -> dict[str, dict[str, ModelConfig]]:
         """Load all accumulated pipeline states from persistent storage."""
         if not self.state_file.exists():
             logger.debug("No state file found, starting with empty pipeline states")
@@ -189,7 +189,7 @@ class PathManager:
         """Get the directory containing model files."""
         return self._ensure_model_directory_exists(model_id, precision, file_type)
 
-    def check_cached_files(self, model_id: str, precision: str, shape_mode: str) -> Dict:
+    def check_cached_files(self, model_id: str, precision: str, shape_mode: str) -> dict:
         """Check which files exist in cache."""
         return {
             "onnx": self.get_onnx_path(model_id, precision).exists(),
@@ -256,7 +256,7 @@ class PathManager:
         self.delete_cached_onnx_files(model_id, precision)
         self.delete_cached_engine_files(model_id, precision, shape_mode)
 
-    def list_cached_models(self) -> Dict:
+    def list_cached_models(self) -> dict:
         """List all cached models."""
         cached = {"onnx": [], "engines": []}
 
@@ -397,7 +397,7 @@ class PathManager:
             logger.error("No valid source provided or local file does not exist")
             return False
 
-    def _convert_config_input(self, model_configs: Dict[str, Union[ModelConfig, tuple]]) -> Dict[str, ModelConfig]:
+    def _convert_config_input(self, model_configs: dict[str, Union[ModelConfig, tuple]]) -> dict[str, ModelConfig]:
         """Convert input configurations to ModelConfig objects."""
         converted_configs = {}
         for role, config in model_configs.items():
@@ -413,7 +413,7 @@ class PathManager:
 
         return converted_configs
 
-    def set_pipeline_models(self, pipeline_name: str, model_configs: Dict[str, Union[ModelConfig, tuple]]) -> None:
+    def set_pipeline_models(self, pipeline_name: str, model_configs: dict[str, Union[ModelConfig, tuple]]) -> None:
         """
         Set the models needed for current pipeline and handle cleanup in lean mode.
 
@@ -435,7 +435,7 @@ class PathManager:
             logger.debug(f"Full mode: Saving state with {len(self.pipeline_states)} total pipelines")
             self._save_pipeline_states()
 
-    def _handle_lean_mode_cleanup(self, pipeline_name: str, model_configs: Dict[str, ModelConfig]) -> None:
+    def _handle_lean_mode_cleanup(self, pipeline_name: str, model_configs: dict[str, ModelConfig]) -> None:
         """Handle cleanup logic for lean mode - only keep the current pipeline active."""
         logger.debug(f"Lean mode: Setting pipeline '{pipeline_name}' as the only active pipeline")
 
@@ -470,7 +470,7 @@ class PathManager:
         )
         self._save_pipeline_states()
 
-    def _get_all_models_from_states(self, pipeline_states: Dict[str, Dict[str, ModelConfig]]) -> Set[tuple]:
+    def _get_all_models_from_states(self, pipeline_states: dict[str, dict[str, ModelConfig]]) -> set[tuple]:
         """Extract all models from pipeline states."""
         all_models = set()
         for pipeline_config in pipeline_states.values():

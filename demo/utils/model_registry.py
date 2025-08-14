@@ -22,7 +22,7 @@ Path management is handled by PathManager.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import tensorrt_rtx as trt
 import torch
@@ -31,7 +31,7 @@ import torch
 logger = logging.getLogger("rtx_demo.utils.model_registry")
 
 # Shared model definitions - each model defined once with all its variants
-MODELS: Dict[str, Dict[str, Dict[str, Any]]] = {
+MODELS: dict[str, dict[str, dict[str, Any]]] = {
     "flux_clip_text_encoder": {
         "bf16": {
             "onnx_repository": "black-forest-labs/FLUX.1-dev-onnx",
@@ -155,7 +155,7 @@ MODELS: Dict[str, Dict[str, Dict[str, Any]]] = {
 }
 
 # Pipeline compositions - map pipeline roles to actual models
-PIPELINES: Dict[str, Dict[str, str]] = {
+PIPELINES: dict[str, dict[str, str]] = {
     "flux_1_dev": {
         "clip_text_encoder": "flux_clip_text_encoder",
         "t5_text_encoder": "flux_t5_text_encoder",
@@ -165,7 +165,7 @@ PIPELINES: Dict[str, Dict[str, str]] = {
 }
 
 # Default precisions per pipeline
-DEFAULT_PRECISIONS: Dict[str, Dict[str, str]] = {
+DEFAULT_PRECISIONS: dict[str, dict[str, str]] = {
     # Flux default precisions
     "flux_1_dev": {
         "clip_text_encoder": "bf16",
@@ -177,7 +177,7 @@ DEFAULT_PRECISIONS: Dict[str, Dict[str, str]] = {
 
 
 # Short form precision mapping
-SHORT_FORM_PRECISIONS: Dict[str, torch.dtype] = {
+SHORT_FORM_PRECISIONS: dict[str, torch.dtype] = {
     "fp16": torch.float16,
     "fp8": torch.float8_e4m3fn,
     "bf16": torch.bfloat16,
@@ -235,7 +235,7 @@ class ModelRegistry:
         """Check if a model ID is valid"""
         return model_id in self.models
 
-    def get_model_config(self, pipeline_name: str, role: str, precision: str) -> Optional[Dict[str, Any]]:
+    def get_model_config(self, pipeline_name: str, role: str, precision: str) -> Optional[dict[str, Any]]:
         """Get configuration for a model in a pipeline role"""
         model_id = self.get_model_id(pipeline_name, role)
         if not model_id:
@@ -243,7 +243,7 @@ class ModelRegistry:
 
         return self.models.get(model_id, {}).get(precision)
 
-    def get_available_precisions(self, pipeline_name: str, role: str) -> List:
+    def get_available_precisions(self, pipeline_name: str, role: str) -> list:
         """Get available precisions for a model role"""
         model_id = self.get_model_id(pipeline_name, role)
         if not model_id:
@@ -251,11 +251,11 @@ class ModelRegistry:
 
         return list(self.models.get(model_id, {}).keys())
 
-    def get_pipeline_roles(self, pipeline_name: str) -> List:
+    def get_pipeline_roles(self, pipeline_name: str) -> list:
         """Get all roles in a pipeline"""
         return list(self.pipelines.get(pipeline_name, {}).keys())
 
-    def get_pipeline_config(self, pipeline_name: str) -> Dict[str, str]:
+    def get_pipeline_config(self, pipeline_name: str) -> dict[str, str]:
         """Get all configs in a pipeline"""
         return self.pipelines.get(pipeline_name, {})
 
@@ -263,7 +263,7 @@ class ModelRegistry:
         """Get default precision for a role"""
         return self.defaults.get(pipeline_name, {}).get(role, "fp16")
 
-    def get_default_precisions(self, pipeline_name: str) -> Dict[str, str]:
+    def get_default_precisions(self, pipeline_name: str) -> dict[str, str]:
         """Get default precisions for a pipeline"""
         return self.defaults.get(pipeline_name, {})
 
@@ -294,7 +294,7 @@ class ModelRegistry:
             return None
         return config.get("onnx_subfolder")
 
-    def validate_precision_config(self, pipeline_name: str, precision_config: Dict[str, str]) -> Dict[str, str]:
+    def validate_precision_config(self, pipeline_name: str, precision_config: dict[str, str]) -> dict[str, str]:
         """Validate and fill in missing precisions with defaults"""
         validated_config = {}
         pipeline_roles = self.get_pipeline_roles(pipeline_name)

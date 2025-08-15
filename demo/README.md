@@ -122,11 +122,39 @@ python demo/flux1.dev/flux_demo.py --hf-token YOUR_TOKEN --low-vram --precision 
 
 Choose based on your GPU architecture and VRAM requirements:
 
-| Precision | Supported GPU Architecture | VRAM Usage |
-| --------- | -------------------------- | ---------- |
-| **BF16**  | Ampere, Ada, Blackwell     | Most       |
-| **FP8**   | Ada, Blackwell             | Medium     |
-| **FP4**   | Blackwell                  | Least      |
+<table>
+<thead>
+<tr>
+<th rowspan="2">Precision</th>
+<th rowspan="2">Supported GPU Architecture</th>
+<th colspan="2">Approx. Max VRAM Usage</th>
+</tr>
+<tr>
+<th>Default</th>
+<th>--low-vram</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>BF16</strong></td>
+<td>Ampere, Ada, Blackwell</td>
+<td>32.1 GB</td>
+<td>23.1 GB</td>
+</tr>
+<tr>
+<td><strong>FP8</strong></td>
+<td>Ada, Blackwell</td>
+<td>21.6 GB</td>
+<td>12.0 GB</td>
+</tr>
+<tr>
+<td><strong>FP4</strong></td>
+<td>Blackwell</td>
+<td>20.5 GB</td>
+<td>11.0 GB</td>
+</tr>
+</tbody>
+</table>
 
 ```python
 # Configure precision when loading engines
@@ -182,6 +210,7 @@ demo_cache/
 **GPU Out of Memory**
 
 - Use `low_vram=True` to reduce VRAM usage
+- Use `enable_runtime_cache=False` or omit the `--enable-runtime-cache` flag
 - Try lower precision: `fp8` (Ada/Blackwell) or `fp4` (Blackwell only)
 - Reduce batch size or image resolution
 

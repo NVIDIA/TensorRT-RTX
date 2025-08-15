@@ -22,7 +22,7 @@ import tensorrt_rtx as trt
 from cuda.bindings import runtime as cudart
 
 
-def cuda_assert(call):
+def cuda_assert(call: tuple) -> object:
     res = None
     err = call[0]
     if len(call) > 1:
@@ -45,7 +45,7 @@ logger = trt.Logger(trt.Logger.VERBOSE)
 
 
 # Create a simple fully connected network with one input, one hidden layer, and one output.
-def create_network(builder, fc1_weights, fc2_weights):
+def create_network(builder: trt.Builder, fc1_weights: trt.Weights, fc2_weights: trt.Weights) -> trt.INetworkDefinition:
     # Specify network creation options.
     # Note: TensorRT-RTX only supports strongly typed networks, explicitly specify this to avoid warning.
     flags = 1 << int(trt.NetworkDefinitionCreationFlag.STRONGLY_TYPED)
@@ -88,7 +88,7 @@ def create_network(builder, fc1_weights, fc2_weights):
 
 # Create a network by parsing the included "helloWorld.onnx" model.
 # The ONNX model contains the same layers and weights as the custom network.
-def create_network_from_onnx(builder, onnx_file_path):
+def create_network_from_onnx(builder: trt.Builder, onnx_file_path: str) -> trt.INetworkDefinition:
     print("Parsing ONNX file: ", onnx_file_path)
 
     # Specify network creation options.
@@ -126,7 +126,7 @@ def create_network_from_onnx(builder, onnx_file_path):
 # it is OS-independent and by default supports Ampere and later GPUs. But
 # be aware that the engine does not guarantee forward compatibility, so
 # you must build a new engine for each new TensorRT-RTX version.
-def create_serialized_engine():
+def create_serialized_engine() -> trt.IHostMemory:
     # The weights in this example are initialized to 1.0f, but typically would
     # be loaded from a file or other source.
     # The data backing IConstantLayers must remain valid until the engine has
@@ -159,7 +159,7 @@ def create_serialized_engine():
 
 
 # Create an engine execution context out of the serialized engine, then perform inference.
-def run_inference(serialized_engine):
+def run_inference(serialized_engine: trt.IHostMemory) -> None:
     runtime = trt.Runtime(logger)
     if not runtime:
         raise RuntimeError("Failed to create runtime!")
@@ -237,7 +237,7 @@ def run_inference(serialized_engine):
     print("Successfully ran the network.")
 
 
-def main():
+def main() -> None:
     serialized_engine = create_serialized_engine()
     if not serialized_engine:
         raise RuntimeError("Failed to build serialized engine!")

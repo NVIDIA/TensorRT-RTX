@@ -1,5 +1,5 @@
 accelerate
---extra-index-url https://download.pytorch.org/whl/cu128
+--extra-index-url https://download.pytorch.org/whl/cu129
 torch>=2.7.0
 transformers>=4.52.4
 diffusers>=0.33.1
@@ -7,12 +7,12 @@ huggingface-hub>=0.32.4
 tqdm>=4.67.1
 pillow
 numpy
-cuda-python
+cuda-python<13.0.0
 polygraphy>=0.49.24
 packaging
 protobuf
 sentencepiece
-tensorrt-rtx>=1.0.0
+tensorrt-rtx>=1.1.0
 
 # Jupyter dependencies
 requests>=2.25.0

@@ -15,7 +15,7 @@
 
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from diffusers import AutoencoderKL, FluxTransformer2DModel
 from diffusers.configuration_utils import FrozenDict
@@ -53,7 +53,7 @@ class FluxTransformerModel(BaseModel):
 
     def get_input_profile(
         self, use_static_shape: bool, batch_size: int = 1, height: int = 512, width: int = 512
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Return TensorRT input profile for dynamic shapes"""
         latent_height = height // self.model_params.VAE_SPATIAL_COMPRESSION_RATIO
         latent_width = width // self.model_params.VAE_SPATIAL_COMPRESSION_RATIO
@@ -142,7 +142,7 @@ class FluxTransformerModel(BaseModel):
 
         return input_profile
 
-    def get_shape_dict(self, batch_size: int = 1, height: int = 512, width: int = 512) -> Dict[str, Any]:
+    def get_shape_dict(self, batch_size: int = 1, height: int = 512, width: int = 512) -> dict[str, Any]:
         """Return shape dictionary for tensor allocation"""
         latent_height = height // self.model_params.VAE_SPATIAL_COMPRESSION_RATIO
         latent_width = width // self.model_params.VAE_SPATIAL_COMPRESSION_RATIO
@@ -186,7 +186,7 @@ class FluxTextEncoderModel(BaseModel):
         logger.debug(f"Loading CLIP Text Encoder config from {model_id}")
         self.config = AutoConfig.from_pretrained(model_id, subfolder="text_encoder", token=self.hf_token)
 
-    def get_input_profile(self, use_static_shape: bool, batch_size: int = 1, **kwargs) -> Dict[str, Any]:
+    def get_input_profile(self, use_static_shape: bool, batch_size: int = 1, **kwargs) -> dict[str, Any]:
         """Return TensorRT input profile for dynamic shapes"""
         if use_static_shape:
             return {
@@ -200,7 +200,7 @@ class FluxTextEncoderModel(BaseModel):
             ]
         }
 
-    def get_shape_dict(self, batch_size: int = 1, **kwargs) -> Dict[str, Any]:
+    def get_shape_dict(self, batch_size: int = 1, **kwargs) -> dict[str, Any]:
         """Return shape dictionary for tensor allocation"""
         # Handle both direct config and nested text_config structures
         hidden_size = getattr(self.config, "hidden_size", None)
@@ -233,7 +233,7 @@ class FluxT5EncoderModel(BaseModel):
         logger.debug(f"Loading T5 Text Encoder config from {model_id}")
         self.config = AutoConfig.from_pretrained(model_id, subfolder="text_encoder_2", token=self.hf_token)
 
-    def get_input_profile(self, use_static_shape: bool, batch_size: int = 1) -> Dict[str, Any]:
+    def get_input_profile(self, use_static_shape: bool, batch_size: int = 1) -> dict[str, Any]:
         """Return TensorRT input profile for dynamic shapes"""
         if use_static_shape:
             return {
@@ -247,7 +247,7 @@ class FluxT5EncoderModel(BaseModel):
             ]
         }
 
-    def get_shape_dict(self, batch_size: int = 1) -> Dict[str, Any]:
+    def get_shape_dict(self, batch_size: int = 1) -> dict[str, Any]:
         """Return shape dictionary for tensor allocation"""
         # T5 uses 'd_model' for hidden size
         hidden_size = getattr(self.config, "d_model", 4096)
@@ -278,7 +278,7 @@ class FluxVAEModel(BaseModel):
 
     def get_input_profile(
         self, use_static_shape: bool, batch_size: int = 1, height: int = 512, width: int = 512
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Return TensorRT input profile for dynamic shapes"""
         latent_height = height // self.model_params.VAE_SPATIAL_COMPRESSION_RATIO
         latent_width = width // self.model_params.VAE_SPATIAL_COMPRESSION_RATIO
@@ -311,7 +311,7 @@ class FluxVAEModel(BaseModel):
             ]
         }
 
-    def get_shape_dict(self, batch_size: int = 1, height: int = 512, width: int = 512) -> Dict[str, Any]:
+    def get_shape_dict(self, batch_size: int = 1, height: int = 512, width: int = 512) -> dict[str, Any]:
         """Return shape dictionary for tensor allocation"""
         latent_height = height // self.model_params.VAE_SPATIAL_COMPRESSION_RATIO
         latent_width = width // self.model_params.VAE_SPATIAL_COMPRESSION_RATIO

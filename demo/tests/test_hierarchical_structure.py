@@ -17,6 +17,7 @@
 Test script to verify the new hierarchical folder structure.
 """
 
+from pathlib import PurePosixPath
 
 import pytest
 from utils.path_manager import PathManager
@@ -35,9 +36,13 @@ class TestHierarchicalStructure:
         shared_metadata = path_manager.get_metadata_path("t5_text_encoder", "fp16", shape_mode)
 
         # Verify structure by checking path components
-        assert "shared/onnx/t5_text_encoder/fp16/t5_text_encoder.onnx" in str(shared_onnx)
-        assert f"shared/engines/t5_text_encoder/fp16/t5_text_encoder_{shape_mode}.engine" in str(shared_engine)
-        assert f"shared/engines/t5_text_encoder/fp16/t5_text_encoder_{shape_mode}.metadata.json" in str(shared_metadata)
+        assert "shared/onnx/t5_text_encoder/fp16/t5_text_encoder.onnx" in str(PurePosixPath(shared_onnx))
+        assert f"shared/engines/t5_text_encoder/fp16/t5_text_encoder_{shape_mode}.engine" in str(
+            PurePosixPath(shared_engine)
+        )
+        assert f"shared/engines/t5_text_encoder/fp16/t5_text_encoder_{shape_mode}.metadata.json" in str(
+            PurePosixPath(shared_metadata)
+        )
 
     def test_different_precisions_separated(self, path_manager: PathManager):
         """Test that different precisions for same model are properly separated."""
@@ -66,6 +71,6 @@ class TestHierarchicalStructure:
 
         # All files should have clean names without precision suffixes
         assert shared_onnx.name == "t5_text_encoder.onnx", f"ONNX should have clean name, got: {shared_onnx.name}"
-        assert (
-            shared_engine.name == f"t5_text_encoder_{shape_mode}.engine"
-        ), f"Engine should have clean name, got: {shared_engine.name}"
+        assert shared_engine.name == f"t5_text_encoder_{shape_mode}.engine", (
+            f"Engine should have clean name, got: {shared_engine.name}"
+        )

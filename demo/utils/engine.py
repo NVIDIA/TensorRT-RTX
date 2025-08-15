@@ -23,7 +23,7 @@ import subprocess
 import time
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Dict, Optional, Set
+from typing import Any, Optional
 
 import cuda.bindings.runtime as cudart
 import tensorrt_rtx as trt
@@ -101,7 +101,7 @@ class Engine:
         del self.runtime_cache
         del self.runtime_config
 
-    def _validate_input_profile(self, input_profile: Dict[str, Any]):
+    def _validate_input_profile(self, input_profile: dict[str, Any]):
         """Validate input profile formatting"""
         if not isinstance(input_profile, dict) or not input_profile:
             raise ValueError("input_profile must be a non-empty dictionary")
@@ -139,19 +139,19 @@ class Engine:
     def build(
         self,
         onnx_path: str,
-        input_profile: Dict[str, Any],
+        input_profile: dict[str, Any],
         static_shape: bool = True,
         verbose: bool = False,
-        extra_args: Optional[Set[str]] = None,
+        extra_args: Optional[set[str]] = None,
     ):
         """Build TensorRT engine from ONNX model"""
         logger.info(f"Building TensorRT engine for {onnx_path}: {self.engine_path}")
 
         # Validate input profile
         is_static = self._validate_input_profile(input_profile)
-        assert (
-            is_static == static_shape
-        ), f"Input profile and static_shape mismatch: Input profile is {'static' if is_static else 'dynamic'} while expected shape is {'static' if static_shape else 'dynamic'}"
+        assert is_static == static_shape, (
+            f"Input profile and static_shape mismatch: Input profile is {'static' if is_static else 'dynamic'} while expected shape is {'static' if static_shape else 'dynamic'}"
+        )
 
         # Build command with arguments
         build_command = [f"polygraphy convert {onnx_path} --convert-to trt --output {self.engine_path}"]
@@ -207,7 +207,7 @@ class Engine:
             )
 
         except subprocess.CalledProcessError as exc:
-            error_msg = f"Failed to build TensorRT engine. Error details:\n" f"Command: {exc.cmd}\n"
+            error_msg = f"Failed to build TensorRT engine. Error details:\nCommand: {exc.cmd}\n"
             raise RuntimeError(error_msg) from exc
 
     def load(self):
@@ -322,7 +322,7 @@ class Engine:
         del self.context
         self.context = None
 
-    def allocate_buffers(self, shape_dict: Optional[Dict[str, Any]] = None, device: str = "cuda"):
+    def allocate_buffers(self, shape_dict: Optional[dict[str, Any]] = None, device: str = "cuda"):
         """Allocate input/output buffers for inference"""
         total_buffer_memory = 0
 
@@ -383,7 +383,7 @@ class Engine:
         gc.collect()
         torch.cuda.empty_cache()
 
-    def infer(self, feed_dict: Dict[str, Any], stream: torch.cuda.Stream, use_cuda_graph: bool = False):
+    def infer(self, feed_dict: dict[str, Any], stream: torch.cuda.Stream, use_cuda_graph: bool = False):
         """Run inference with the engine"""
         # Copy input data to tensors
         for name, buf in feed_dict.items():

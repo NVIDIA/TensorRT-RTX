@@ -7,20 +7,8 @@ repos:
       - id: ruff-check
         types_or: [ python, pyi ]
         args: [ --fix ]
-
-  # Basic Python formatting
-  - repo: https://github.com/psf/black
-    rev: 23.3.0
-    hooks:
-      - id: black
-        args: [--line-length=120]
-
-  # Import sorting
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
-    hooks:
-      - id: isort
-        args: [--profile=black, --line-length=120]
+      - id: ruff-format
+        types_or: [ python, pyi ]
 
   # Remove trailing whitespace and fix line endings
   - repo: https://github.com/pre-commit/pre-commit-hooks

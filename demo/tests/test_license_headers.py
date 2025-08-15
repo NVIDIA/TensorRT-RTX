@@ -50,10 +50,24 @@ class TestLicenseHeaders:
 
     @classmethod
     def find_files_by_pattern(cls, root_path, patterns):
-        """Find all files matching the given patterns."""
+        """Find all files matching the given patterns, excluding build and temporary directories within the repo."""
+        # Directories to exclude from license header checks (only within the repository)
+        exclude_dirs = {
+            "build",
+        }
+
         files = []
         for pattern in patterns:
-            files.extend(root_path.rglob(pattern))
+            for file_path in root_path.rglob(pattern):
+                # Get the relative path from root_path to check only dirs within the repo
+                try:
+                    relative_path = file_path.relative_to(root_path)
+                    # Check if any directory in the relative path is in the exclude list
+                    if not any(part in exclude_dirs for part in relative_path.parts):
+                        files.append(file_path)
+                except ValueError:
+                    # If file_path is not relative to root_path, skip it
+                    continue
         return files
 
     @classmethod

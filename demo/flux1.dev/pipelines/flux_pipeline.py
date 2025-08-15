@@ -18,7 +18,7 @@ import gc
 import logging
 import os
 import time
-from typing import Dict, List, Optional
+from typing import Optional
 
 import cuda.bindings.runtime as cudart
 import numpy as np
@@ -98,7 +98,7 @@ class FluxPipeline(Pipeline):
         # Initialize models
         self.initialize_models()
 
-    def _get_model_configs(self) -> Dict[str, tuple[str, str]]:
+    def _get_model_configs(self) -> dict[str, tuple[str, str]]:
         """Get model configurations from registry."""
         pipeline_config = model_registry.get_pipeline_config(self.pipeline_name)
         model_configs = {}
@@ -109,7 +109,7 @@ class FluxPipeline(Pipeline):
 
         return model_configs
 
-    def get_model_names(self) -> List[str]:
+    def get_model_names(self) -> list[str]:
         """Return list of model names used by this pipeline"""
         return ["clip_text_encoder", "t5_text_encoder", "transformer", "vae_decoder"]
 
@@ -338,9 +338,9 @@ class FluxPipeline(Pipeline):
             logger.info("Detected existing engines, cleaning up...")
             self.cleanup()
 
-        assert transformer_precision in model_registry.get_available_precisions(
-            self.pipeline_name, "transformer"
-        ), f"Invalid precision for transformer: {transformer_precision}, options: {model_registry.get_available_precisions(self.pipeline_name, 'transformer')}"
+        assert transformer_precision in model_registry.get_available_precisions(self.pipeline_name, "transformer"), (
+            f"Invalid precision for transformer: {transformer_precision}, options: {model_registry.get_available_precisions(self.pipeline_name, 'transformer')}"
+        )
 
         self.precision_config["transformer"] = transformer_precision
 
@@ -352,9 +352,9 @@ class FluxPipeline(Pipeline):
 
         # Validate shape_config
         for role, _ in shape_config.items():
-            assert role in model_registry.get_pipeline_roles(
-                self.pipeline_name
-            ), f"Invalid role in shape_config: {role}, options: {model_registry.get_pipeline_roles(self.pipeline_name)}"
+            assert role in model_registry.get_pipeline_roles(self.pipeline_name), (
+                f"Invalid role in shape_config: {role}, options: {model_registry.get_pipeline_roles(self.pipeline_name)}"
+            )
 
         # VAE Decoder set to static shape to reduce VRAM usage
         if shape_mode == "dynamic":
@@ -435,10 +435,7 @@ class FluxPipeline(Pipeline):
             return False
 
         # Calculate current and new max workspace requirements
-        if not self.low_vram:
-            current_max_workspace = self.calculate_max_device_memory()
-        else:
-            current_max_workspace = None
+        current_max_workspace = None if self.low_vram else self.calculate_max_device_memory()
 
         # Rebuild any engines for which a shape change was detected
         for role in engines_to_refresh:
@@ -872,7 +869,7 @@ class FluxPipeline(Pipeline):
             # Save image
             for i in range(images.shape[0]):
                 image_path = os.path.join(save_path, f"flux_demo_{i + 1}.png")
-                logger.info(f"Saving image {i+1} / {images.shape[0]} to: {image_path} with shape {images[i].shape}")
+                logger.info(f"Saving image {i + 1} / {images.shape[0]} to: {image_path} with shape {images[i].shape}")
                 pil = Image.fromarray(images[i])
                 pil.save(image_path)
                 image_paths.append(image_path)

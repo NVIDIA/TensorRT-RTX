@@ -26,7 +26,7 @@ import logging
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Set
+from typing import Any, Optional
 
 # Initialize logger for this module
 logger = logging.getLogger("rtx_demo.utils.engine_metadata")
@@ -40,27 +40,27 @@ class EngineMetadata:
     precision: str
     onnx_path: str
     onnx_hash: str
-    input_shapes: Dict[str, Any]
-    extra_args: Set[str]
+    input_shapes: dict[str, Any]
+    extra_args: set[str]
     build_timestamp: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "EngineMetadata":
+    def from_dict(cls, data: dict[str, Any]) -> "EngineMetadata":
         """Create from dictionary"""
         return cls(**data)
 
-    def is_compatible_with(self, new_shapes: Dict[str, Any], new_extra_args: Optional[Set[str]] = None) -> bool:
+    def is_compatible_with(self, new_shapes: dict[str, Any], new_extra_args: Optional[set[str]] = None) -> bool:
         """Check if engine is compatible with new shapes and extra args"""
         new_extra_args = set() if new_extra_args is not None else set()
         if self.extra_args != new_extra_args:
             return False
         return self._shapes_fit_profile(new_shapes)
 
-    def _shapes_fit_profile(self, new_shapes: Dict[str, Any]) -> bool:
+    def _shapes_fit_profile(self, new_shapes: dict[str, Any]) -> bool:
         """Check if new shapes fit within dynamic profile"""
         for input_name, new_shape in new_shapes.items():
             if input_name not in self.input_shapes:
@@ -119,8 +119,8 @@ class EngineMetadataManager:
         model_name: str,
         precision: str,
         onnx_path: str,
-        input_shapes: Dict,
-        extra_args: Optional[Set[str]] = None,
+        input_shapes: dict,
+        extra_args: Optional[set[str]] = None,
     ) -> None:
         """Save engine metadata to file."""
         metadata = {
@@ -156,9 +156,9 @@ class EngineMetadataManager:
     def check_engine_compatibility(
         self,
         engine_path: Path,
-        target_shapes: Dict,
+        target_shapes: dict,
         static_shape: bool,
-        extra_args: Optional[Set[str]] = None,
+        extra_args: Optional[set[str]] = None,
     ) -> tuple[bool, str]:
         """Check if an existing engine is compatible with current requirements."""
         if not engine_path.exists():
@@ -277,7 +277,7 @@ class EngineMetadataManager:
         except Exception:
             return "unknown"
 
-    def _normalize_shapes_for_comparison(self, shapes: Dict) -> Dict:
+    def _normalize_shapes_for_comparison(self, shapes: dict) -> dict:
         """Normalize shapes for comparison by converting lists to tuples recursively"""
         normalized = {}
         for input_name, shape in shapes.items():

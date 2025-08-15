@@ -18,7 +18,7 @@ import tensorrt_rtx as trt
 from cuda.bindings import runtime as cudart
 
 
-def cuda_assert(call):
+def cuda_assert(call: tuple) -> object:
     res = None
     err = call[0]
     if len(call) > 1:
@@ -42,7 +42,7 @@ k_max_batch_size = 32
 logger = trt.Logger(trt.Logger.VERBOSE)
 
 
-def create_builder_config(builder):
+def create_builder_config(builder: trt.Builder) -> trt.IBuilderConfig:
     # Create a builder configuration to specify optional settings.
     builder_config = builder.create_builder_config()
 
@@ -96,7 +96,7 @@ def create_builder_config(builder):
 
 
 # Create a simple fully connected network with one input, one hidden layer, and one output.
-def create_network(builder, fc1_weights, fc2_weights):
+def create_network(builder: trt.Builder, fc1_weights: trt.Weights, fc2_weights: trt.Weights) -> trt.INetworkDefinition:
     # Specify network creation options.
     # Note: TensorRT-RTX only supports strongly typed networks, explicitly specify this to avoid warning.
     flags = 1 << int(trt.NetworkDefinitionCreationFlag.STRONGLY_TYPED)
@@ -152,7 +152,7 @@ def create_network(builder, fc1_weights, fc2_weights):
 # it is OS-independent and by default supports Ampere and later GPUs. But
 # be aware that the engine does not guarantee forward compatibility, so
 # you must build a new engine for each new TensorRT-RTX version.
-def create_serialized_engine(fc1_weights, fc2_weights):
+def create_serialized_engine(fc1_weights: trt.Weights, fc2_weights: trt.Weights) -> trt.IHostMemory:
     # Create a builder object.
     builder = trt.Builder(logger)
     if not builder:
@@ -174,7 +174,9 @@ def create_serialized_engine(fc1_weights, fc2_weights):
     return serialized_engine
 
 
-def use_optional_advanced_dynamic_shapes_api(runtime_config, inference_engine):
+def use_optional_advanced_dynamic_shapes_api(
+    runtime_config: trt.IRuntimeConfig, inference_engine: trt.ICudaEngine
+) -> None:
     # Optionally, print the profile dimensions for the input tensor.
     # Query the profile dimensions for the input tensor and report.
     tensor_name = inference_engine.get_tensor_name(0)
@@ -201,11 +203,11 @@ def use_optional_advanced_dynamic_shapes_api(runtime_config, inference_engine):
 
 # Helper to perform inference for changing shapes.
 class InferenceContext:
-    def __init__(self, inference_engine, context):
+    def __init__(self, inference_engine: trt.ICudaEngine, context: trt.IExecutionContext) -> None:
         self.inference_engine = inference_engine
         self.context = context
 
-    def run_inference(self, input_buffer, batch_size, stream):
+    def run_inference(self, input_buffer: np.ndarray, batch_size: int, stream: int) -> np.ndarray:
         # Select the optimization profile.
         if not self.context.set_optimization_profile_async(0, stream):
             raise RuntimeError("Failed to set optimization profile!")
@@ -299,10 +301,29 @@ class InferenceContext:
         return output_buffer
 
 
-def run_inference(serialized_engine, fc1_weights, fc2_weights):
+def run_inference(serialized_engine: trt.IHostMemory, fc1_weights: trt.Weights, fc2_weights: trt.Weights) -> None:
     runtime = trt.Runtime(logger)
     if not runtime:
         raise RuntimeError("Failed to create runtime!")
+
+    # Query the engine header size
+    if runtime.engine_header_size == 0:
+        raise RuntimeError("Engine header size is 0")
+
+    # Check if the engine can be successfully deserialized.
+    validity, diagnostics = runtime.get_engine_validity(serialized_engine)
+
+    if validity == trt.EngineValidity.INVALID:
+        # Check the diagnostics to see what is wrong
+        invalidity_reasons = []
+        for enum_name, enum_value in trt.EngineInvalidityDiagnostics.__members__.items():
+            # .value gets the integer value of the enum
+            if diagnostics & enum_value.value:
+                invalidity_reasons.append(enum_name)
+
+        raise RuntimeError(f"Engine is invalid due to: {', '.join(invalidity_reasons)}")
+
+    print(f"Engine passes validity check with status: {validity}")
 
     # Deserialize the engine.
     inference_engine = runtime.deserialize_cuda_engine(serialized_engine)
@@ -402,7 +423,7 @@ def run_inference(serialized_engine, fc1_weights, fc2_weights):
     print(f"Cache size in bytes: {serialized_runtime_cache.nbytes}")
 
 
-def main():
+def main() -> None:
     # The data backing IConstantLayers must remain valid until the engine has
     # been built and then refit. Therefore we first create weights data, and then
     # individual weights, which are kept alive until after the engine is built and

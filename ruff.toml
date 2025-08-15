@@ -28,7 +28,8 @@ exclude = [
     "venv",
 ]
 
-target-version = "py38"
+target-version = "py39"
+line-length = 120
 
 [lint]
 select = [
@@ -42,8 +43,8 @@ select = [
     "B",
     # flake8-simplify
     "SIM",
-    # Disable isort in ruff to avoid conflicts with standalone isort
-    # "I",
+    # isort
+    "I",
 ]
 ignore = [
     # Line too long

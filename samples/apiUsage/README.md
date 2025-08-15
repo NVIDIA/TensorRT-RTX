@@ -5,6 +5,7 @@ compilation and inference. First please refer to the [Hello World](../helloWorld
 sample that goes over the basic concepts. In addition, this sample covers
 
 - Creating a TensorRT-RTX builder and network definition with dynamic shapes and setting AoT compilation targets using the `setComputeCapability` and associated API.
+- Efficiently checking if an engine file is expected to work for the current platform/environment using the Engine Compatibility API.
 - Configuring and serializing a runtime cache via `setRuntimeCache` and associated API to store JIT compiled kernels.
 - Setting, querying and running inference with dynamic shape information via various dynamic shape APIs.
 - Building weightless engines, and subsequently refitting weights on the deployed machines using the refit APIs.
@@ -24,7 +25,7 @@ sample that goes over the basic concepts. In addition, this sample covers
 On Windows, add the TensorRT for RTX `lib` directory to your `PATH` environment variable:
 
 ```powershell
-$Env:PATH += ";${PATH_TO_TRT_RTX}\lib"
+$Env:PATH += ";$Env:PATH_TO_TRT_RTX\lib"
 ```
 
 On Linux, add the TensorRT for RTX `lib` directory to your `LD_LIBRARY_PATH` environment variable:

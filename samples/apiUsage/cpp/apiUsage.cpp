@@ -25,6 +25,7 @@
 #include <memory>
 #include <numeric> // For std::accumulate
 #include <optional>
+#include <unordered_map>
 #include <vector>
 
 //! TensorRT-RTX applications are responsible for implementing the
@@ -466,6 +467,42 @@ int main()
     {
         std::cerr << "Failed to create runtime!" << std::endl;
         return EXIT_FAILURE;
+    }
+
+    // Check if the engine can be successfully deserialized.
+    {
+        int64_t const nbHeaderBytes = runtime->getEngineHeaderSize();
+        auto dataPtr = static_cast<void const*>(serializedEngine->data());
+        if (serializedEngine->size() < static_cast<size_t>(nbHeaderBytes))
+        {
+            std::cerr << "Serialized engine data is smaller than expected header size!" << std::endl;
+            return EXIT_FAILURE;
+        }
+
+        // Diagnostics is an invalidity bitmask and is useful for debugging.
+        uint64_t diagnostics;
+        auto const validity = runtime->getEngineValidity(dataPtr, nbHeaderBytes, &diagnostics);
+        if (validity == nvinfer1::EngineValidity::kINVALID)
+        {
+            using Diag = nvinfer1::EngineInvalidityDiagnostics;
+            std::unordered_map<Diag, std::string> const diagMessages{
+                {Diag::kVERSION_MISMATCH, "TensorRT version mismatch"},
+                {Diag::kUNSUPPORTED_CC, "Unsupported compute capability"},
+                {Diag::kOLD_CUDA_DRIVER, "CUDA driver version too old"},
+                {Diag::kOLD_CUDA_RUNTIME, "CUDA runtime version too old"},
+                {Diag::kINSUFFICIENT_GPU_MEMORY, "Insufficient GPU memory"},
+                {Diag::kMALFORMED_ENGINE, "Malformed engine data"}, {Diag::kCUDA_ERROR, "CUDA error occurred"}};
+
+            for (const auto& [diag, message] : diagMessages)
+            {
+                if (diagnostics & static_cast<uint64_t>(diag))
+                {
+                    std::cerr << "Engine is invalid due to: " << message << std::endl;
+                }
+            }
+            return EXIT_FAILURE;
+        }
+        // validity can also be kSUBOPTIMAL or kINVALID, consult the documentation for more details.
     }
 
     // Deserialize the engine.

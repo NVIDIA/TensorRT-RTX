@@ -22,7 +22,6 @@ This script tests the different input shape profile formats:
 3. Effectively static shapes (all 3 tuples are the same)
 """
 
-
 import pytest
 from utils.engine_metadata import EngineMetadata
 

@@ -1,5 +1,8 @@
 name: CI
-on: push
+on:
+  push:
+    branches:
+      - "pull-request/[0-9]+"
 env:
   TRT_RTX_FILENAME: TensorRT-RTX-1.1.1.26.Linux.x86_64-gnu.cuda-12.9.tar.gz
   TRTRTX_INSTALL_DIR: /opt/tensorrt_rtx
@@ -15,7 +18,8 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
-          python-version: 3.9
+          version: "0.8.22"
+          python-version: "3.9"
 
       - name: Set up Python
         run: uv python install

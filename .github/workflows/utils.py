@@ -21,7 +21,7 @@ import sys
 import tarfile
 from pathlib import Path
 
-# Common environment variables
+# Shared constants
 TRT_RTX_BASE_URL = "https://developer.nvidia.com/downloads/trt/rtx_sdk/secure/1.1"
 TRT_RTX_FILENAME = os.environ.get("TRT_RTX_FILENAME","TensorRT-RTX-1.1.1.26.Linux.x86_64-gnu.cuda-12.9.tar.gz")
 TRTRTX_INSTALL_DIR = os.environ.get("TRTRTX_INSTALL_DIR", "/opt/tensorrt_rtx")

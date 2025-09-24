@@ -1,0 +1,76 @@
+name: CI
+on: push
+env:
+  TRT_RTX_FILENAME: TensorRT-RTX-1.1.1.26.Linux.x86_64-gnu.cuda-12.9.tar.gz
+  TRTRTX_INSTALL_DIR: /opt/tensorrt_rtx
+  BUILD_DIR: build
+  UV_PROJECT: .github/workflows/
+jobs:
+  build-linux:
+    runs-on: ubuntu-24.04
+    container: nvcr.io/nvidia/cuda:12.9.1-devel-ubuntu22.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: 3.9
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Cache TensorRT RTX
+        id: cache-trt-rtx
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TRTRTX_INSTALL_DIR }}
+          key: tensorrt-rtx-${{ runner.os }}-${{ env.TRT_RTX_FILENAME }}
+
+      - name: Run build script
+        env:
+          CACHE_DEB_HIT: ${{ steps.cache-deb.outputs.cache-hit }}
+          CACHE_TRT_RTX_HIT: ${{ steps.cache-trt-rtx.outputs.cache-hit }}
+        run: uv run --group build .github/workflows/build.py
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build-artifacts
+          path: ${{ env.BUILD_DIR }}/
+
+  test-linux:
+    needs: build-linux
+    runs-on: [linux-amd64-gpu-rtx4090-latest-1]
+    container:
+      image: nvcr.io/nvidia/cuda:12.9.1-runtime-ubuntu22.04
+      options: --gpus all
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.22"
+          python-version: "3.9"
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Cache TensorRT RTX
+        id: cache-trt-rtx
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TRTRTX_INSTALL_DIR }}
+          key: tensorrt-rtx-${{ runner.os }}-${{ env.TRT_RTX_FILENAME }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build-artifacts
+          path: ${{ env.BUILD_DIR }}/
+
+      - name: Run test script
+        env:
+          CACHE_TRT_RTX_HIT: ${{ steps.cache-trt-rtx.outputs.cache-hit }}
+        run: uv run .github/workflows/test.py

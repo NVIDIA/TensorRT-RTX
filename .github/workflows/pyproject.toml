@@ -1,0 +1,12 @@
+[project]
+name = "trt_rtx_ci"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = [
+    "requests==2.*"
+]
+
+[dependency-groups]
+build = [
+    "cmake==3.*"
+]

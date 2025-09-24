@@ -54,6 +54,7 @@ class TestLicenseHeaders:
         # Directories to exclude from license header checks (only within the repository)
         exclude_dirs = {
             "build",
+            ".venv",
         }
 
         files = []

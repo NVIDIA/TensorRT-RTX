@@ -82,17 +82,18 @@ class Engine:
         precision: str,
         model_name: str,
         runtime_cache_path: Optional[str] = None,
+        cuda_graph_strategy: str = "disabled",
     ):
         self.engine_path = engine_path
         self.engine = None
         self.context = None
         self.tensors = OrderedDict()
-        self.cuda_graph_instance = None
         self.precision = precision
         self.model_name = model_name
         self.runtime_config = None
         self.runtime_cache = None
         self.runtime_cache_path = runtime_cache_path
+        self.cuda_graph_strategy = cuda_graph_strategy
 
     def __del__(self):
         del self.tensors
@@ -154,7 +155,7 @@ class Engine:
         )
 
         # Build command with arguments
-        build_command = [f"polygraphy convert {onnx_path} --convert-to trt --output {self.engine_path}"]
+        build_command = [f"polygraphy convert {onnx_path} --convert-to trt --use-gpu --output {self.engine_path}"]
 
         build_args = []
         verbosity = "extra_verbose" if verbose else "error"
@@ -254,6 +255,10 @@ class Engine:
         """Create execution context"""
 
         self.runtime_config = self.engine.create_runtime_config()
+
+        if self.cuda_graph_strategy == "whole_graph_capture":
+            self.runtime_config.cuda_graph_strategy = trt.CudaGraphStrategy.WHOLE_GRAPH_CAPTURE
+
         if self.runtime_cache_path:
             if self.runtime_cache is None:
                 logger.debug("Creating runtime cache")
@@ -383,7 +388,7 @@ class Engine:
         gc.collect()
         torch.cuda.empty_cache()
 
-    def infer(self, feed_dict: dict[str, Any], stream: torch.cuda.Stream, use_cuda_graph: bool = False):
+    def infer(self, feed_dict: dict[str, Any], stream: torch.cuda.Stream):
         """Run inference with the engine"""
         # Copy input data to tensors
         for name, buf in feed_dict.items():
@@ -394,26 +399,8 @@ class Engine:
             self.context.set_tensor_address(name, tensor.data_ptr())
 
         # Execute inference
-        if use_cuda_graph:
-            if self.cuda_graph_instance is not None:
-                _CUASSERT(cudart.cudaGraphLaunch(self.cuda_graph_instance, stream))
-                _CUASSERT(cudart.cudaStreamSynchronize(stream))
-            else:
-                # Initial inference before CUDA graph capture
-                noerror = self.context.execute_async_v3(stream)
-                if not noerror:
-                    raise ValueError(f"ERROR: Inference with {self.engine_path} failed.")
-
-                # Capture CUDA graph
-                _CUASSERT(
-                    cudart.cudaStreamBeginCapture(stream, cudart.cudaStreamCaptureMode.cudaStreamCaptureModeGlobal)
-                )
-                self.context.execute_async_v3(stream)
-                self.graph = _CUASSERT(cudart.cudaStreamEndCapture(stream))
-                self.cuda_graph_instance = _CUASSERT(cudart.cudaGraphInstantiate(self.graph, 0))
-        else:
-            noerror = self.context.execute_async_v3(stream)
-            if not noerror:
-                raise ValueError(f"ERROR: Inference with {self.engine_path} failed.")
+        noerror = self.context.execute_async_v3(stream)
+        if not noerror:
+            raise ValueError(f"ERROR: Inference with {self.engine_path} failed.")
 
         return self.tensors

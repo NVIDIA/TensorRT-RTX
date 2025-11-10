@@ -60,6 +60,7 @@ class Pipeline(ABC):
         low_vram: bool = False,
         log_level: str = "INFO",
         enable_runtime_cache: bool = False,
+        cuda_graph_strategy: str = "disabled",
     ):
         """
         Initialize pipeline.
@@ -75,6 +76,7 @@ class Pipeline(ABC):
             low_vram: Enable low VRAM mode
             log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
             enable_runtime_cache: Enable use of serialized runtime cache to improve JIT compilation times
+            cuda_graph_strategy: Enable use of Cudagraphs for accelerated inference (disabled, whole_graph_capture)
         """
         # Configure logging FIRST, before any other operations
         self.configure_logging(verbose, log_level)
@@ -89,6 +91,13 @@ class Pipeline(ABC):
         self.verbose = verbose
         self.hf_token = hf_token
         self.low_vram = low_vram
+        self.enable_runtime_cache = enable_runtime_cache
+
+        assert cuda_graph_strategy in ["disabled", "whole_graph_capture"], (
+            "Invalid cuda graph strategy {cuda_graph_strategy}, must be either 'disabled' or 'whole_graph_capture'"
+        )
+        logger.debug(f"Cuda graph strategy: {cuda_graph_strategy}")
+        self.cuda_graph_strategy = cuda_graph_strategy
 
         if enable_runtime_cache:
             self.runtime_cache_path = os.path.join(cache_dir, "runtime.cache")
@@ -276,7 +285,7 @@ class Pipeline(ABC):
     def run_engine(self, model_name: str, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         """Run inference on a specific engine"""
         engine = self.engines[model_name]
-        return engine.infer(inputs, self.stream, use_cuda_graph=False)
+        return engine.infer(inputs, self.stream)
 
     def infer(self, *args, **kwargs):
         """Run the full pipeline inference - to be implemented by subclasses"""

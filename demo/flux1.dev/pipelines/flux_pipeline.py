@@ -66,6 +66,7 @@ class FluxPipeline(Pipeline):
         low_vram: bool = False,
         log_level: str = "INFO",
         enable_runtime_cache: bool = False,
+        cuda_graph_strategy: str = "disabled",
     ):
         super().__init__(
             pipeline_name="flux_1_dev",
@@ -77,6 +78,7 @@ class FluxPipeline(Pipeline):
             low_vram=low_vram,
             log_level=log_level,
             enable_runtime_cache=enable_runtime_cache,
+            cuda_graph_strategy=cuda_graph_strategy,
         )
 
         # Flux-specific parameters
@@ -250,7 +252,7 @@ class FluxPipeline(Pipeline):
             )
 
             if is_compatible:
-                engine = Engine(engine_path, precision, model_id, self.runtime_cache_path)
+                engine = Engine(engine_path, precision, model_id, self.runtime_cache_path, self.cuda_graph_strategy)
                 try:
                     if not self.low_vram:
                         engine.load()
@@ -285,7 +287,7 @@ class FluxPipeline(Pipeline):
             )
 
             logger.debug(f"Building engine for path {engine_path}")
-            engine = Engine(engine_path, precision, model_id, self.runtime_cache_path)
+            engine = Engine(engine_path, precision, model_id, self.runtime_cache_path, self.cuda_graph_strategy)
             engine.build(
                 onnx_path=str(onnx_path),
                 input_profile=input_profile,

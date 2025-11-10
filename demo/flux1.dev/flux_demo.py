@@ -62,6 +62,13 @@ def main():
         choices=["bf16", "fp8", "fp4"],
     )
     parser.add_argument("--enable-runtime-cache", action="store_true", help="Enable runtime caching")
+    parser.add_argument(
+        "--cuda-graph-strategy",
+        type=str,
+        default="disabled",
+        help="Cuda graph strategy (default: disabled)",
+        choices=["disabled", "whole_graph_capture"],
+    )
     parser.add_argument("--low-vram", action="store_true", help="Enable low VRAM mode")
     parser.add_argument("--dynamic-shape", action="store_true", default=False, help="Enable dynamic-shape engines")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
@@ -83,6 +90,7 @@ def main():
             num_inference_steps=args.num_inference_steps,
             hf_token=args.hf_token,
             low_vram=args.low_vram,
+            cuda_graph_strategy=args.cuda_graph_strategy,
             enable_runtime_cache=args.enable_runtime_cache,
         )
 
@@ -99,6 +107,7 @@ def main():
         logger.info(f"Guidance scale: {args.guidance_scale}")
         logger.info(f"Cache directory: {args.cache_dir}")
         logger.info(f"Low VRAM mode: {args.low_vram}")
+        logger.info(f"Cudagraphs: {args.cuda_graph_strategy}")
         logger.info(f"Dynamic shape: {args.dynamic_shape}")
         logger.info(f"Runtime caching: {args.enable_runtime_cache}")
         logger.info(f"Cache mode: {args.cache_mode}")

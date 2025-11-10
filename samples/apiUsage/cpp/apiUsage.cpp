@@ -564,6 +564,24 @@ int main()
     }
     useOptionalAdvancedDynamicShapesAPI(runtimeConfig.get(), inferenceEngine.get());
 
+    // Enable Cudagraphs Whole Graph Capture for accelerated inference
+    {
+        // TensorRT-RTX can record CUDA graphs to reduce kernel launch overhead during JIT inference.
+        // kDISABLED skips graph capture and runs kernels directly on the stream
+        // kWHOLE_GRAPH_CAPTURE captures the complete computational graph of the model
+        //    and executes it atomically on the GPU stream. It automatically handles dynamic shape
+        //    cases, capturing the CUDA graph after shape-specialized kernels are compiled for a given shape.
+        bool const setCudaGraphStrategySuccess
+            = runtimeConfig->setCudaGraphStrategy(nvinfer1::CudaGraphStrategy::kWHOLE_GRAPH_CAPTURE);
+        if (!setCudaGraphStrategySuccess)
+        {
+            std::cerr << "Failed to set cuda graph strategy!" << std::endl;
+            return EXIT_FAILURE;
+        }
+        // Query API to illustrate retrieval.
+        (void) runtimeConfig->getCudaGraphStrategy();
+    }
+
     // Create an engine execution context out of the deserialized engine.
     // TRT-RTX performs "Just-in-Time" (JIT) optimization here, targeting the current GPU.
     // JIT phase is faster than AOT phase, and typically completes in under 15 seconds.

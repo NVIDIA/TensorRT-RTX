@@ -364,6 +364,14 @@ def run_inference(serialized_engine: trt.IHostMemory, fc1_weights: trt.Weights, 
 
     use_optional_advanced_dynamic_shapes_api(runtime_config, inference_engine)
 
+    # Enable Cudagraphs Whole Graph Capture for accelerated inference
+    # TensorRT-RTX can record CUDA graphs to reduce kernel launch overhead during JIT inference.
+    # DISABLED skips graph capture and runs kernels directly on the stream
+    # WHOLE_GRAPH_CAPTURE captures the complete computational graph of the model
+    #    and executes it atomically on the GPU stream. It automatically handles dynamic shape
+    #    cases, capturing the CUDA graph after shape-specialized kernels are compiled for a given shape.
+    runtime_config.cuda_graph_strategy = trt.CudaGraphStrategy.WHOLE_GRAPH_CAPTURE
+
     # Create an engine execution context out of the deserialized engine.
     # TRT-RTX performs "Just-in-Time" (JIT) optimization here, targeting the current GPU.
     # JIT phase is faster than AOT phase, and typically completes in under 15 seconds.

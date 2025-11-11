@@ -55,6 +55,7 @@ class TestLicenseHeaders:
         exclude_dirs = {
             "build",
             "site-packages",
+            "activate_this.py",
         }
 
         files = []

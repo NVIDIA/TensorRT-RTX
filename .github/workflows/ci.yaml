@@ -77,4 +77,5 @@ jobs:
       - name: Run test script
         env:
           CACHE_TRT_RTX_HIT: ${{ steps.cache-trt-rtx.outputs.cache-hit }}
+          UV_PROJECT_ENVIRONMENT: .workspace/ci/
         run: uv run .github/workflows/test.py

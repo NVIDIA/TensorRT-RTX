@@ -26,7 +26,7 @@
   git-clang-format --style file [commit ID/reference]
   ```
 
-- Format  individual source files:
+- Format individual source files:
 
   ```bash
   # -style=file : Obtain the formatting rules from .clang-format
@@ -97,7 +97,7 @@ git push -u origin <local-branch>:<remote-branch>
      Note that versioned releases of TensorRT-RTX OSS are posted to `release/` branches of the upstream repo.
    - Creation of a PR creation kicks off the code review process.
    - At least one TensorRT-RTX engineer will be assigned for the review.
-   - While under review, mark your PRs as work-in-progress by prefixing the PR title with \[WIP\].
+   - While under review, mark your PRs as work-in-progress by prefixing the PR title with [WIP].
 
 4. Since there is no CI/CD process in place yet, the PR will be accepted and the corresponding issue closed only after adequate testing has been completed, manually, by the developer and/or TensorRT-RTX engineer reviewing the code.
 

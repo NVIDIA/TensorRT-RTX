@@ -39,9 +39,10 @@ repos:
 
   # Markdown formatting
   - repo: https://github.com/executablebooks/mdformat
-    rev: 0.7.17
+    rev: 1.0.0
     hooks:
       - id: mdformat
+        exclude: ^.github/
         additional_dependencies:
         - mdformat-gfm
         - mdformat-black

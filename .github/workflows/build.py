@@ -14,13 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from utils import run_command, setup_trt_rtx, TRTRTX_INSTALL_DIR, BUILD_DIR
+from utils import BUILD_DIR, TRTRTX_INSTALL_DIR, run_command, setup_trt_rtx
+
 
 def build_samples():
     """Build C++ samples."""
     print("Building C++ samples...")
     run_command(f"cmake -B {BUILD_DIR} -S samples -DTRTRTX_INSTALL_DIR={TRTRTX_INSTALL_DIR}")
     run_command(f"cmake --build {BUILD_DIR}")
+
 
 def main():
     # Setup TensorRT RTX
@@ -30,6 +32,7 @@ def main():
     build_samples()
 
     print("Build completed successfully!")
+
 
 if __name__ == "__main__":
     main()

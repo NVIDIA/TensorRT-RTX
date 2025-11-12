@@ -33,13 +33,13 @@ A collection of demos showcasing key [TensorRT-RTX](https://developer.nvidia.com
 
 ## Python Script Usage Examples
 
-The standalone script provides extensive configuration options for various use cases. For detailed walkthroughs, interactive exploration, and comprehensive documentation, see the [Flux.1 \[dev\] Demo Notebook](./flux1.dev/flux_demo.ipynb) which offers in-depth coverage of TensorRT-RTX features.
+The standalone script provides extensive configuration options for various use cases. For detailed walkthroughs, interactive exploration, and comprehensive documentation, see the [Flux.1 [dev] Demo Notebook](./flux1.dev/flux_demo.ipynb) which offers in-depth coverage of TensorRT-RTX features.
 
 > **GPU Compatibility**: This demo is verified on Ada and Blackwell GPUs. See [Transformer Precision Options](#transformer-precision-options) for more compatibility details.
 
 ### Required Parameters
 
-To download model checkpoints for the FLUX.1 \[dev\] pipeline, obtain a `read` access token to the model repository on HuggingFace Hub. See [instructions](https://huggingface.co/docs/hub/security-tokens).
+To download model checkpoints for the FLUX.1 [dev] pipeline, obtain a `read` access token to the model repository on HuggingFace Hub. See [instructions](https://huggingface.co/docs/hub/security-tokens).
 
 ```bash
 --hf-token YOUR_HF_TOKEN                # Hugging Face token with read access to the Flux.1 [dev] model
@@ -74,7 +74,7 @@ To download model checkpoints for the FLUX.1 \[dev\] pipeline, obtain a `read` a
 --cache-mode {full,lean}                 # Cache mode (default: full)
 ```
 
-### Example Commands for Flux.1 \[dev\] Pipeline
+### Example Commands for Flux.1 [dev] Pipeline
 
 **Default Parameters Image Generation:**
 
@@ -205,7 +205,7 @@ demo_cache/
 
 - Ensure the dimensions are multiples of 16
 - Try altering the `seed` and `guidance_scale` parameters
-- See [Flux.1 \[dev\] Demo Notebook](./flux1.dev/flux_demo.ipynb) for more tips and examples
+- See [Flux.1 [dev] Demo Notebook](./flux1.dev/flux_demo.ipynb) for more tips and examples
 
 **GPU Out of Memory**
 

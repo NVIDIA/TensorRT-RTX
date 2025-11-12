@@ -16,7 +16,9 @@
 
 import os
 from pathlib import Path
-from utils import run_command, setup_trt_rtx, TRTRTX_INSTALL_DIR, BUILD_DIR
+
+from utils import BUILD_DIR, TRTRTX_INSTALL_DIR, run_command, setup_trt_rtx
+
 
 def install_python_deps():
     """Install Python dependencies."""
@@ -33,15 +35,17 @@ def install_python_deps():
     run_command("uv pip install --index-strategy unsafe-best-match -r demo/flux1.dev/requirements.txt")
     run_command("uv pip install -r demo/tests/requirements-test.txt")
 
+
 def run_cpp_tests():
     """Run C++ sample tests."""
     print("Running C++ tests...")
     BINARIES = [f"{BUILD_DIR}/helloWorld/cpp/helloWorld", f"{BUILD_DIR}/apiUsage/cpp/apiUsage"]
     for binary in BINARIES:
         # Add the executable permission if not on Windows
-        if os.name != 'nt':
+        if os.name != "nt":
             os.chmod(binary, os.stat(binary).st_mode | 0o111)
         run_command(binary)
+
 
 def run_python_tests():
     """Run Python sample tests."""
@@ -53,6 +57,7 @@ def run_python_tests():
     run_command("uv run samples/helloWorld/python/hello_world.py", env=test_env)
     run_command("uv run samples/apiUsage/python/api_usage.py", env=test_env)
     run_command("uv run pytest demo/tests -v", env=test_env)
+
 
 def main():
     # Setup TensorRT RTX
@@ -66,6 +71,7 @@ def main():
     run_python_tests()
 
     print("All tests completed successfully!")
+
 
 if __name__ == "__main__":
     main()

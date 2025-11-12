@@ -21,11 +21,11 @@ assignees: ''
 <!-- A clear and concise description of what you expected to happen. -->
 
 **Environment**
- - TensorRT-RTX version: 
- - GPU: 
- - Operating system: 
- - CUDA version: 
- - CPU architecture: 
+ - TensorRT-RTX version:
+ - GPU:
+ - Operating system:
+ - CUDA version:
+ - CPU architecture:
 
 **Screenshots**
 <!-- If applicable, add screenshots to help explain your problem. -->

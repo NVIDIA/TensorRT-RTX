@@ -12,7 +12,7 @@ polygraphy>=0.49.24
 packaging
 protobuf
 sentencepiece
-tensorrt-rtx>=1.1.0
+tensorrt-rtx>=1.3.0
 
 # Jupyter dependencies
 requests>=2.25.0

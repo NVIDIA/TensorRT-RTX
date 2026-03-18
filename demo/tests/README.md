@@ -12,10 +12,8 @@ We recommend using Python versions between 3.9 and 3.12 inclusive due to support
 git clone https://github.com/NVIDIA/TensorRT-RTX.git
 cd TensorRT-RTX
 
-# Install TensorRT-RTX from the wheels located in the downloaded tarfile
-# Visit https://developer.nvidia.com/tensorrt-rtx to download
-# Example below is for Python 3.12 on Linux (customize with your Python version + OS)
-python -m pip install YOUR_TENSORRT_RTX_DOWNLOAD_DIR/python/tensorrt_rtx-1.3.0.35-cp312-none-linux_x86_64.whl
+# Install TensorRT-RTX
+python -m pip install tensorrt-rtx
 
 # Install demo dependencies
 python -m pip install -r demo/flux1.dev/requirements.txt

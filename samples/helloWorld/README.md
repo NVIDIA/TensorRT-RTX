@@ -48,10 +48,10 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${PATH_TO_TRT_RTX}/lib
 
 #### Build for Python
 
-1. Install the `tensorrt_rtx` wheel from your TensorRT for RTX directory:
+1. Install TensorRT-RTX:
 
    ```bash
-   python -m pip install /path/to/tensorrt-rtx/python/tensorrt_rtx-${version}-cp${py3-ver}-none-${os-ver}_x86_64.whl
+   python -m pip install tensorrt-rtx
    ```
 
 2. Install `numpy` and `cuda-python` from the `python/requirements.txt` file:

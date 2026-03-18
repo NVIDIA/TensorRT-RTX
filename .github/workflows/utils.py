@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,9 +23,9 @@ from pathlib import Path
 import requests
 
 # Shared constants
-TRT_RTX_BASE_URL = "https://developer.nvidia.com/downloads/trt/rtx_sdk/secure/1.3/"
+TRT_RTX_BASE_URL = "https://developer.nvidia.com/downloads/trt/rtx_sdk/secure/1.4/"
 TRT_RTX_FILENAME = os.environ.get(
-    "TRT_RTX_FILENAME", "TensorRT-RTX-1.3.0.35-Linux-x86_64-cuda-12.9-Release-external.tar.gz"
+    "TRT_RTX_FILENAME", "TensorRT-RTX-1.4.0.76-Linux-x86_64-cuda-12.9-Release-external.tar.gz"
 )
 TRTRTX_INSTALL_DIR = os.environ.get("TRTRTX_INSTALL_DIR", "/opt/tensorrt_rtx")
 BUILD_DIR = os.environ.get("BUILD_DIR", "build")

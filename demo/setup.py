@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="rtx-demos",
-    version="1.3.0",
+    version="1.4.0",
     description="RTX Demos",
     packages=find_packages(),
     install_requires=[
@@ -31,7 +31,7 @@ setup(
         "cuda-python<13.0.0",
         "polygraphy>=0.49.24",
         "packaging",
-        "tensorrt-rtx>=1.3.0",
+        "tensorrt-rtx>=1.4.0",
         "accelerate",
         "protobuf",
         "sentencepiece",

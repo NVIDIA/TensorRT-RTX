@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -137,8 +138,13 @@ class TestLicenseHeaders:
         return cls.normalize_license_lines(license_lines)
 
     @classmethod
-    def validate_copyright_year(cls, copyright_line):
-        """Validate that copyright line has exact structure with current year"""
+    def validate_copyright_year(cls, copyright_line, format_only=False):
+        """Validate that copyright line has correct structure.
+
+        Args:
+            copyright_line: The copyright line to validate
+            format_only: If True, only check format (YYYY or YYYY-YYYY), not specific year
+        """
         current_year = datetime.now().year
 
         # Allowed formats:
@@ -154,27 +160,31 @@ class TestLicenseHeaders:
         # Extract the year part between prefix and suffix
         year_part = copyright_line[len(cls.COPYRIGHT_YEAR_PREFIX) : -len(cls.COPYRIGHT_YEAR_SUFFIX)]
 
-        # Validate year format and current year requirement
+        # Validate year format (and optionally current year requirement)
         if "-" in year_part:
             # Range like "2023-2025"
             if not re.match(r"^\d{4}-\d{4}$", year_part):
                 return False
             start_year, end_year = year_part.split("-")
+            if format_only:
+                return int(start_year) < int(end_year)
             return int(start_year) < current_year == int(end_year)
         else:
             # Single year like "2025"
             if not re.match(r"^\d{4}$", year_part):
                 return False
+            if format_only:
+                return True
             return int(year_part) == current_year
 
     @classmethod
-    def is_license_compatible(cls, extracted_lines, expected_lines):
+    def is_license_compatible(cls, extracted_lines, expected_lines, format_only=False):
         """Check if the extracted license is compatible with expected format."""
         if len(extracted_lines) != len(expected_lines):
             return False
 
         for i, (extracted, expected) in enumerate(zip(extracted_lines, expected_lines)):
-            if i == 0 and not cls.validate_copyright_year(extracted):
+            if i == 0 and not cls.validate_copyright_year(extracted, format_only=format_only):
                 # First line - validate copyright with exact structure and flexible years
                 return False
             elif i != 0 and extracted != expected:
@@ -184,7 +194,7 @@ class TestLicenseHeaders:
         return True
 
     @classmethod
-    def check_license_header(cls, file_path, file_type):
+    def check_license_header(cls, file_path, file_type, format_only=False):
         """Check if file has the correct license header."""
         if file_type == "Python":
             extracted_lines = cls.extract_license_with_octothorpe_comments(file_path, skip_shebang=True)
@@ -196,7 +206,7 @@ class TestLicenseHeaders:
             raise ValueError(f"Unknown file type: {file_type}")
 
         return (
-            cls.is_license_compatible(extracted_lines, cls.EXPECTED_LICENSE_LINES),
+            cls.is_license_compatible(extracted_lines, cls.EXPECTED_LICENSE_LINES, format_only=format_only),
             extracted_lines,
         )
 
@@ -204,6 +214,17 @@ class TestLicenseHeaders:
     def test_all_files_have_license_header(self):
         """Test that all relevant files have the required license header."""
         root_path = self.get_project_root()
+
+        # If LICENSE_CHECK_FILES env var is set, only check those files
+        check_files_env = os.environ.get("LICENSE_CHECK_FILES", "").strip()
+        if check_files_env:
+            allowed_files = {root_path / f.strip() for f in check_files_env.split("\n") if f.strip()}
+        else:
+            allowed_files = None
+
+        # LICENSE_CHECK_MODE: "format_only" skips year validation, checks all files
+        check_mode = os.environ.get("LICENSE_CHECK_MODE", "").strip()
+        format_only = check_mode == "format_only"
 
         # Define file types with their patterns and type names
         file_checks = [
@@ -218,6 +239,10 @@ class TestLicenseHeaders:
         for patterns, file_type in file_checks:
             files = self.find_files_by_pattern(root_path, patterns)
 
+            # Filter to allowed files if env var was set
+            if allowed_files is not None:
+                files = [f for f in files if f in allowed_files]
+
             for file_path in files:
                 # Skip empty __init__.py files
                 if file_type == "Python" and file_path.name == "__init__.py":
@@ -229,7 +254,9 @@ class TestLicenseHeaders:
                     except Exception:
                         pass  # If any issues are encountered, continue with normal processing
 
-                has_correct_license, extracted = self.check_license_header(file_path, file_type)
+                has_correct_license, extracted = self.check_license_header(
+                    file_path, file_type, format_only=format_only
+                )
                 if not extracted:
                     all_missing.append((file_path, file_type))
                 elif not has_correct_license:

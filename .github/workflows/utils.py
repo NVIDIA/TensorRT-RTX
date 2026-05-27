@@ -21,11 +21,12 @@ import tarfile
 from pathlib import Path
 
 import requests
+import zstandard
 
 # Shared constants
-TRT_RTX_BASE_URL = "https://developer.nvidia.com/downloads/trt/rtx_sdk/secure/1.4/"
+TRT_RTX_BASE_URL = "https://developer.nvidia.com/downloads/trt/rtx_sdk/secure/1.5/"
 TRT_RTX_FILENAME = os.environ.get(
-    "TRT_RTX_FILENAME", "TensorRT-RTX-1.4.0.76-Linux-x86_64-cuda-12.9-Release-external.tar.gz"
+    "TRT_RTX_FILENAME", "TensorRT-RTX-1.5.0.114-Linux-x86_64-cuda-12.9-Release-external.tar.zst"
 )
 TRTRTX_INSTALL_DIR = os.environ.get("TRTRTX_INSTALL_DIR", "/opt/tensorrt_rtx")
 BUILD_DIR = os.environ.get("BUILD_DIR", "build")
@@ -55,12 +56,12 @@ def setup_trt_rtx():
         response = requests.get(url, stream=True)
         response.raise_for_status()
 
-        # Create a file-like object from the response content
-        tar_bytes = io.BytesIO(response.content)
+        with zstandard.ZstdDecompressor().stream_reader(io.BytesIO(response.content)) as reader:
+            tar_bytes = io.BytesIO(reader.read())
 
         # Extract tar file, stripping the first directory component
         os.makedirs(TRTRTX_INSTALL_DIR)
-        with tarfile.open(fileobj=tar_bytes, mode="r:gz") as tar:
+        with tarfile.open(fileobj=tar_bytes, mode="r:") as tar:
             members = [m for m in tar.getmembers() if len(Path(m.name).parts) > 1]
             for member in members:
                 member.name = str(Path(*Path(member.name).parts[1:]))

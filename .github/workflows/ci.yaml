@@ -4,7 +4,7 @@ on:
     branches:
       - "pull-request/[0-9]+"
 env:
-  TRT_RTX_FILENAME: TensorRT-RTX-1.4.0.76-Linux-x86_64-cuda-12.9-Release-external.tar.gz
+  TRT_RTX_FILENAME: TensorRT-RTX-1.5.0.114-Linux-x86_64-cuda-12.9-Release-external.tar.zst
   TRTRTX_INSTALL_DIR: /opt/tensorrt_rtx
   BUILD_DIR: build
   UV_PROJECT: .github/workflows/

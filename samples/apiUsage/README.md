@@ -15,7 +15,7 @@ sample that goes over the basic concepts. In addition, this sample covers
 
 ### Prerequisites
 
-- CMake 3.10 or later
+- CMake 3.17 or later
 - Python 3.9 or later
 - CUDA Toolkit
 - An installation of TensorRT for RTX

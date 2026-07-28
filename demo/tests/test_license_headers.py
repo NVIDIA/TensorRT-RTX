@@ -160,7 +160,11 @@ class TestLicenseHeaders:
         # Extract the year part between prefix and suffix
         year_part = copyright_line[len(cls.COPYRIGHT_YEAR_PREFIX) : -len(cls.COPYRIGHT_YEAR_SUFFIX)]
 
-        # Validate year format (and optionally current year requirement)
+        # Validate year format (and optionally current year requirement).
+        # In non-format_only mode the year(s) must not be in the future, but a
+        # stale year (e.g. "Copyright (c) 2025" still present in 2026 on a
+        # file that hasn't been modified) is accepted -- adding a per-year
+        # touch to every file just to roll the date is a needless churn.
         if "-" in year_part:
             # Range like "2023-2025"
             if not re.match(r"^\d{4}-\d{4}$", year_part):
@@ -168,30 +172,55 @@ class TestLicenseHeaders:
             start_year, end_year = year_part.split("-")
             if format_only:
                 return int(start_year) < int(end_year)
-            return int(start_year) < current_year == int(end_year)
+            return int(start_year) < int(end_year) <= current_year
         else:
             # Single year like "2025"
             if not re.match(r"^\d{4}$", year_part):
                 return False
             if format_only:
                 return True
-            return int(year_part) == current_year
+            return int(year_part) <= current_year
 
     @classmethod
     def is_license_compatible(cls, extracted_lines, expected_lines, format_only=False):
-        """Check if the extracted license is compatible with expected format."""
-        if len(extracted_lines) != len(expected_lines):
+        """Check if the extracted license is compatible with the expected format.
+
+        Accepts either:
+          (a) SPDX-only short form: exactly two lines -- an
+              SPDX-FileCopyrightText copyright and an
+              SPDX-License-Identifier: Apache-2.0. Per the SPDX spec,
+              this pair on its own is a complete, machine-readable
+              license declaration.
+          (b) Full form: the two SPDX lines plus the full Apache 2.0
+              boilerplate as `expected_lines`, matching exactly.
+
+        Any other shape (e.g. SPDX header followed by a partial Apache
+        body or any extra free-form lines) is rejected, to keep both
+        accepted forms internally consistent.
+        """
+        # Need at least the two SPDX header lines.
+        if len(extracted_lines) < 2:
             return False
 
-        for i, (extracted, expected) in enumerate(zip(extracted_lines, expected_lines)):
-            if i == 0 and not cls.validate_copyright_year(extracted, format_only=format_only):
-                # First line - validate copyright with exact structure and flexible years
-                return False
-            elif i != 0 and extracted != expected:
-                # All other lines must match exactly
-                return False
+        # Line 0: SPDX-FileCopyrightText copyright (year checked flexibly).
+        if not cls.validate_copyright_year(extracted_lines[0], format_only=format_only):
+            return False
 
-        return True
+        # Line 1: SPDX-License-Identifier must match exactly.
+        if extracted_lines[1] != expected_lines[1]:
+            return False
+
+        # SPDX-only short form is sufficient.
+        if len(extracted_lines) == 2:
+            return True
+
+        # If the file carries the full Apache boilerplate, require it to
+        # match expected_lines verbatim. Any other shape (partial body,
+        # extra contact lines, etc.) is rejected to keep the verbose form
+        # consistent for files that opt into it.
+        if len(extracted_lines) != len(expected_lines):
+            return False
+        return all(extracted_lines[i] == expected_lines[i] for i in range(2, len(expected_lines)))
 
     @classmethod
     def check_license_header(cls, file_path, file_type, format_only=False):

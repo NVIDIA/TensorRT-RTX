@@ -24,9 +24,9 @@ import requests
 import zstandard
 
 # Shared constants
-TRT_RTX_BASE_URL = "https://developer.nvidia.com/downloads/trt/rtx_sdk/secure/1.5/"
+TRT_RTX_BASE_URL = "https://developer.nvidia.com/downloads/trt/rtx_sdk/secure/1.6/"
 TRT_RTX_FILENAME = os.environ.get(
-    "TRT_RTX_FILENAME", "TensorRT-RTX-1.5.0.114-Linux-x86_64-cuda-12.9-Release-external.tar.zst"
+    "TRT_RTX_FILENAME", "TensorRT-RTX-1.6.1.120-Linux-x86_64-cuda-13.4-Release-external.tar.zst"
 )
 TRTRTX_INSTALL_DIR = os.environ.get("TRTRTX_INSTALL_DIR", "/opt/tensorrt_rtx")
 BUILD_DIR = os.environ.get("BUILD_DIR", "build")
@@ -56,6 +56,10 @@ def setup_trt_rtx():
         response = requests.get(url, stream=True)
         response.raise_for_status()
 
+        # Decompress zstd, then read the inner uncompressed tar. (Python's tarfile
+        # gained native zstd support only in 3.14; we stay on 3.9 and use the
+        # zstandard package. stream_reader avoids needing to know the decompressed
+        # size up front, which the multi-GB TRT release wouldn't provide.)
         with zstandard.ZstdDecompressor().stream_reader(io.BytesIO(response.content)) as reader:
             tar_bytes = io.BytesIO(reader.read())
 

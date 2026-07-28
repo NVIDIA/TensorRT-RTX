@@ -32,6 +32,7 @@ def install_python_deps():
     # Install sample requirements
     run_command("uv pip install -r samples/helloWorld/python/requirements.txt")
     run_command("uv pip install -r samples/apiUsage/python/requirements.txt")
+    run_command("uv pip install -r samples/memoryManagement/python/requirements.txt")
     run_command("uv pip install --index-strategy unsafe-best-match -r demo/flux1.dev/requirements.txt")
     run_command("uv pip install -r demo/tests/requirements-test.txt")
 
@@ -39,7 +40,11 @@ def install_python_deps():
 def run_cpp_tests():
     """Run C++ sample tests."""
     print("Running C++ tests...")
-    BINARIES = [f"{BUILD_DIR}/helloWorld/cpp/helloWorld", f"{BUILD_DIR}/apiUsage/cpp/apiUsage"]
+    BINARIES = [
+        f"{BUILD_DIR}/helloWorld/cpp/helloWorld",
+        f"{BUILD_DIR}/apiUsage/cpp/apiUsage",
+        f"{BUILD_DIR}/memoryManagement/cpp/memoryManagement",
+    ]
     for binary in BINARIES:
         # Add the executable permission if not on Windows
         if os.name != "nt":
@@ -56,6 +61,7 @@ def run_python_tests():
 
     run_command("uv run samples/helloWorld/python/hello_world.py", env=test_env)
     run_command("uv run samples/apiUsage/python/api_usage.py", env=test_env)
+    run_command("uv run samples/memoryManagement/python/memory_management.py", env=test_env)
     run_command("uv run pytest demo/tests -v", env=test_env)
 
 

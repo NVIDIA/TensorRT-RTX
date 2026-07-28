@@ -13,7 +13,7 @@ run a simple neural network. The sample shows basic concepts such as:
 
 ### Prerequisites
 
-- CMake 3.10 or later
+- CMake 3.17 or later
 - Python 3.9 or later
 - CUDA Toolkit
 - An installation of TensorRT for RTX

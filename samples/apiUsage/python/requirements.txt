@@ -1,2 +1,2 @@
 numpy
-cuda-python<13.0.0
+cuda-python

@@ -4,14 +4,14 @@ on:
     branches:
       - "pull-request/[0-9]+"
 env:
-  TRT_RTX_FILENAME: TensorRT-RTX-1.5.0.114-Linux-x86_64-cuda-12.9-Release-external.tar.zst
+  TRT_RTX_FILENAME: TensorRT-RTX-1.6.1.120-Linux-x86_64-cuda-13.4-Release-external.tar.zst
   TRTRTX_INSTALL_DIR: /opt/tensorrt_rtx
   BUILD_DIR: build
   UV_PROJECT: .github/workflows/
 jobs:
   build-linux:
     runs-on: ubuntu-24.04
-    container: nvcr.io/nvidia/cuda:12.9.1-devel-ubuntu22.04
+    container: nvcr.io/nvidia/cuda:13.3.0-devel-ubuntu24.04
     steps:
       - uses: actions/checkout@v5
 
@@ -57,7 +57,7 @@ jobs:
     needs: build-linux
     runs-on: [linux-amd64-gpu-rtx4090-latest-1]
     container:
-      image: nvcr.io/nvidia/cuda:12.9.1-runtime-ubuntu22.04
+      image: nvcr.io/nvidia/cuda:13.3.0-runtime-ubuntu24.04
       options: --gpus all
     steps:
       - uses: actions/checkout@v5

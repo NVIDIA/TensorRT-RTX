@@ -8,6 +8,7 @@ For detailed information about each sample's features and implementation, please
 
 - [Hello World](helloWorld/README.md) - A basic example showing how to create and run a simple TensorRT-RTX network
 - [API Usage](apiUsage/README.md) - Demonstrates how to use TensorRT-RTX advanced APIs for fine-grained control of inference
+- [Memory Management](memoryManagement/README.md) - Shows how to control TensorRT-RTX device memory with a custom GPU allocator and per-shape execution-context memory sizing
 
 To build and run each sample, follow the instructions provided in their respective README files.
 

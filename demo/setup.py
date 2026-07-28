@@ -17,7 +17,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="rtx-demos",
-    version="1.5.0",
+    version="1.6.0",
     description="RTX Demos",
     packages=find_packages(),
     install_requires=[
@@ -28,10 +28,10 @@ setup(
         "tqdm>=4.67.1",
         "pillow",
         "numpy",
-        "cuda-python<13.0.0",
+        "cuda-python",
         "polygraphy>=0.49.24",
         "packaging",
-        "tensorrt-rtx>=1.5.0",
+        "tensorrt-rtx>=1.6.0",
         "accelerate",
         "protobuf",
         "sentencepiece",

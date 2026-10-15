@@ -7,12 +7,14 @@ huggingface-hub>=0.32.4
 tqdm>=4.67.1
 pillow
 numpy
+ml_dtypes
+safetensors
 cuda-python
 polygraphy>=0.49.34
 packaging
 protobuf
 sentencepiece
-tensorrt-rtx>=1.6.0
+tensorrt-rtx>=1.7.1
 
 # Jupyter dependencies
 requests>=2.25.0

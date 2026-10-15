@@ -24,9 +24,9 @@ import requests
 import zstandard
 
 # Shared constants
-TRT_RTX_BASE_URL = "https://developer.nvidia.com/downloads/trt/rtx_sdk/secure/1.6/"
+TRT_RTX_BASE_URL = "https://developer.nvidia.com/downloads/trt/rtx_sdk/secure/1.7/"
 TRT_RTX_FILENAME = os.environ.get(
-    "TRT_RTX_FILENAME", "TensorRT-RTX-1.6.1.120-Linux-x86_64-cuda-13.4-Release-external.tar.zst"
+    "TRT_RTX_FILENAME", "TensorRT-RTX-1.7.1.116-Linux-x86_64-cuda-13.4-Release-external.tar.zst"
 )
 TRTRTX_INSTALL_DIR = os.environ.get("TRTRTX_INSTALL_DIR", "/opt/tensorrt_rtx")
 BUILD_DIR = os.environ.get("BUILD_DIR", "build")

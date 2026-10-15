@@ -18,20 +18,23 @@ import gc
 import logging
 import os
 import time
+from contextlib import nullcontext
 from typing import Optional
 
 import cuda.bindings.runtime as cudart
 import numpy as np
+import tensorrt_rtx as trt
 import torch
 from diffusers import FlowMatchEulerDiscreteScheduler
 from models.flux_model import FluxT5EncoderModel, FluxTextEncoderModel, FluxTransformerModel, FluxVAEModel
 from models.flux_params import FluxParams
+from packaging.version import Version
 from PIL import Image
 from tqdm.auto import tqdm
 from transformers import CLIPTokenizer, T5TokenizerFast
 from utils.engine import Engine
 from utils.engine_metadata import metadata_manager
-from utils.memory_manager import ModelMemoryManager
+from utils.managed_weights import ManagedWeightsScheduler
 from utils.model_registry import registry as model_registry
 from utils.pipeline import Pipeline
 
@@ -54,6 +57,8 @@ def calculate_shift(
 class FluxPipeline(Pipeline):
     """Simple Flux text-to-image pipeline using TensorRT-RTX"""
 
+    ENGINE_EXECUTION_ORDER = ("t5_text_encoder", "clip_text_encoder", "transformer", "vae_decoder")
+
     def __init__(
         self,
         cache_dir: str = "./demo_cache",
@@ -63,10 +68,11 @@ class FluxPipeline(Pipeline):
         guidance_scale: float = 3.5,
         num_inference_steps: int = 50,
         hf_token: Optional[str] = None,
-        low_vram: bool = False,
         log_level: str = "INFO",
         enable_runtime_cache: bool = False,
         cuda_graph_strategy: str = "disabled",
+        weight_offload: str = "none",
+        weight_offload_pinned_host: bool = False,
     ):
         super().__init__(
             pipeline_name="flux_1_dev",
@@ -75,7 +81,6 @@ class FluxPipeline(Pipeline):
             verbose=verbose,
             cache_mode=cache_mode,
             hf_token=hf_token,
-            low_vram=low_vram,
             log_level=log_level,
             enable_runtime_cache=enable_runtime_cache,
             cuda_graph_strategy=cuda_graph_strategy,
@@ -84,6 +89,18 @@ class FluxPipeline(Pipeline):
         # Flux-specific parameters
         self.guidance_scale = guidance_scale
         self.num_inference_steps = num_inference_steps
+        if weight_offload not in {"none", "buffer", "vmm"}:
+            raise ValueError(f"Unsupported weight offload mode: {weight_offload}")
+        if weight_offload_pinned_host and weight_offload == "none":
+            raise ValueError("Pinned host weights require --weight-offload buffer or vmm")
+        self.weight_offload = weight_offload
+        self.weight_offload_pinned_host = weight_offload_pinned_host
+        self.managed_weights = None
+        self._managed_checkpoints = {}
+        self._native_build_shapes = None
+
+        if weight_offload != "none" and Version(trt.__version__) < Version("1.7"):
+            raise RuntimeError(f"Weights offloading requires TensorRT-RTX 1.7 or later; found {trt.__version__}.")
 
         # Initialize scheduler
         self.scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
@@ -176,22 +193,14 @@ class FluxPipeline(Pipeline):
             logger.warning(f"Failed to initialize tokenizers: {e}")
             raise e
 
-    def model_memory_manager(self, model_name, low_vram=False):
-        """Returns a context manager for model memory management.
+    def _use_model_weights(self, model_name):
+        """Return the configured context manager for one pipeline stage."""
+        if self.managed_weights is not None:
+            # TensorRT-RTX 1.7+: offload weights while retaining engines and contexts.
+            return self.managed_weights.use_weights(model_name)
+        return nullcontext()
 
-        This helper method creates a ModelMemoryManager instance for efficient
-        loading and unloading of models to optimize VRAM usage.
-
-        Args:
-            model_name (str): Model name to manage with this context.
-            low_vram (bool, optional): Whether to enable VRAM optimization. Defaults to False.
-
-        Returns:
-            ModelMemoryManager: Context manager for model memory management.
-        """
-        return ModelMemoryManager(self, model_name, low_vram=low_vram)
-
-    def build_and_load_engine(
+    def _prepare_engine(
         self,
         role: str,
         model_id: str,
@@ -202,11 +211,13 @@ class FluxPipeline(Pipeline):
         opt_width: int = 512,
         extra_args: Optional[dict[str]] = None,
     ):
-        """
-        Builds a TensorRT-RTX engine if applicable, otherwise loads from cache.
-        Only loads into GPU memory if low_vram is not enabled.
-        """
+        """Build or reuse an engine plan; defer weightless loading until all builds finish."""
         assert shape_mode in ["static", "dynamic"], "shape_mode must be either 'static' or 'dynamic'"
+
+        if self.weight_offload != "none":
+            return self._prepare_weightless_engine(
+                role, model_id, precision, shape_mode, opt_batch_size, opt_height, opt_width, extra_args
+            )
 
         logger.debug(f"\nProcessing {role} ({model_id}_{precision})...")
 
@@ -254,8 +265,7 @@ class FluxPipeline(Pipeline):
             if is_compatible:
                 engine = Engine(engine_path, precision, model_id, self.runtime_cache_path, self.cuda_graph_strategy)
                 try:
-                    if not self.low_vram:
-                        engine.load()
+                    engine.load()
                     logger.debug(f"Using cached engine: {engine_path.name}")
                 except Exception as e:
                     logger.warning(f"Failed to load cached engine: {e}")
@@ -295,17 +305,90 @@ class FluxPipeline(Pipeline):
                 extra_args=extra_args,
                 verbose=self.verbose,
             )
-            if not self.low_vram:
-                engine.load()
+            engine.load()
 
         if engine is None:
             raise ValueError(f"[E] Engine not found for {model_id}_{precision}.")
 
         self.engines[role] = engine
 
+    def _prepare_weightless_engine(self, role, model_id, precision, shape_mode, batch, height, width, extra_args):
+        from flux_native_builder import MODEL_SPECS, build_weightless_engine, download_checkpoint
+
+        if extra_args:
+            raise ValueError("Safetensors builds do not accept Polygraphy arguments")
+        directory, weight_file = download_checkpoint(role, self.hf_token, precision)
+        base_path = self.path_manager.get_engine_path(model_id, precision, shape_mode, weightless=True)
+        plan_path = base_path.with_name(base_path.stem + ".safetensors" + base_path.suffix)
+        build_options = {"weight_file": weight_file, "precision": precision}
+        if shape_mode == "dynamic":
+            model = self.model_instances[role]
+            build_options["input_profiles"] = (
+                model.get_input_profile(False, batch)
+                if role.endswith("text_encoder")
+                else model.get_input_profile(False, batch, height, width)
+            )
+        checkpoint, source_id = build_weightless_engine(
+            directory, MODEL_SPECS[role][0], plan_path, batch, height, width, **build_options
+        )
+        engine = Engine(plan_path, precision, model_id, self.runtime_cache_path, self.cuda_graph_strategy)
+        self.engines[role] = engine
+        self._managed_checkpoints[role] = (checkpoint, source_id)
+
+    def _initialize_weight_offloading(self) -> dict[str, float]:
+        """Prepare contexts once, then leave every engine's weights unloaded."""
+        if self.stream is None:
+            status, stream = cudart.cudaStreamCreate()
+            if status != cudart.cudaError_t.cudaSuccess:
+                raise RuntimeError(f"cudaStreamCreate failed: {status}")
+            self.stream = stream
+        max_device_memory = self.calculate_max_device_memory()
+        status, workspace = cudart.cudaMalloc(max_device_memory)
+        if status != cudart.cudaError_t.cudaSuccess:
+            raise RuntimeError(f"cudaMalloc({max_device_memory}) failed: {status}")
+        self.shared_device_memory = workspace
+        self.managed_weights = ManagedWeightsScheduler(
+            mode=self.weight_offload,
+            execution_stream=self.stream,
+            device=torch.cuda.current_device(),
+            pinned_host=self.weight_offload_pinned_host,
+        )
+        engine_order = [role for role in self.ENGINE_EXECUTION_ORDER if role in self.engines]
+        if set(engine_order) != set(self.engines):
+            missing = sorted(set(self.engines) - set(engine_order))
+            raise RuntimeError(f"Managed-weight execution order is missing engines: {missing}")
+        for role in engine_order:
+            engine = self.engines[role]
+            checkpoint, source_id = self._managed_checkpoints[role]
+            self.managed_weights.register_engine(
+                role,
+                engine.engine,
+                checkpoint.directory,
+                engine.engine_path,
+                engine.engine_path.with_suffix(".weights.bin"),
+                engine.engine_path.with_suffix(".weights.json"),
+                refit=checkpoint.refit,
+                source_identity=source_id,
+            )
+        self.managed_weights.configure_memory_pool()
+
+        jit_times = {}
+        runtime_cache = None
+        for role in engine_order:
+            engine = self.engines[role]
+            self.managed_weights.initialize_weights(role)
+            try:
+                engine.runtime_cache = runtime_cache
+                jit_times[role] = engine.activate(device_memory=self.shared_device_memory)
+                if runtime_cache is None:
+                    runtime_cache = engine.runtime_cache
+            finally:
+                self.managed_weights.unload_weights(role)
+        return jit_times
+
     def load_engines(
         self,
-        transformer_precision: str = "fp8",
+        transformer_precision: Optional[str] = "fp8",
         opt_batch_size: int = 1,
         opt_height: int = 512,
         opt_width: int = 512,
@@ -316,15 +399,21 @@ class FluxPipeline(Pipeline):
         Build and load TensorRT engines with smart caching.
 
         Args:
-            transformer_precision: Precision configuration for the transformer
+            transformer_precision: Transformer precision (default: "fp8")
             opt_batch_size: Optimal batch size
             opt_height: Optimal image height
             opt_width: Optimal image width
             shape_mode: Shape mode ("dynamic" or "static") for all models (default: "static")
             extra_args: Additional polygraphy arguments
         """
+        transformer_precision = transformer_precision or "fp8"
         compute_capability = torch.cuda.get_device_capability(self.device)
-        if transformer_precision == "fp8" and compute_capability < (8, 9):
+        if self.weight_offload != "none":
+            if transformer_precision == "fp8" and compute_capability < (8, 9):
+                raise ValueError("FP8 weight offload requires Ada or newer GPUs")
+            if transformer_precision == "fp4" and compute_capability < (12, 0):
+                raise ValueError("FP4 weight offload requires Blackwell or newer GPUs")
+        elif transformer_precision == "fp8" and compute_capability < (8, 9):
             logger.error(
                 f"{transformer_precision} transformer precision is not supported on device with compute capability {compute_capability} < (8, 9). "
                 "Proceeding, but expect errors. Please try with bf16 precision instead."
@@ -335,6 +424,11 @@ class FluxPipeline(Pipeline):
                 "Proceeding, but expect errors. Please try with bf16 precision instead."
             )
 
+        if self.weight_offload != "none":
+            if extra_args:
+                raise ValueError("Safetensors weight offload does not accept Polygraphy arguments")
+            if opt_batch_size < 1 or min(opt_height, opt_width) < 1 or opt_height % 16 or opt_width % 16:
+                raise ValueError("Native FLUX requires a positive batch and image dimensions divisible by 16")
         # If engines are already loaded, clean up state first
         if self.engines:
             logger.info("Detected existing engines, cleaning up...")
@@ -359,7 +453,7 @@ class FluxPipeline(Pipeline):
             )
 
         # VAE Decoder set to static shape to reduce VRAM usage
-        if shape_mode == "dynamic":
+        if shape_mode == "dynamic" and self.weight_offload == "none":
             logger.info("Setting VAE Decoder to static shape to reduce VRAM usage")
             shape_config["vae_decoder"] = "static"
 
@@ -376,7 +470,7 @@ class FluxPipeline(Pipeline):
 
         # Process each model
         for role, (model_id, precision, shape_mode) in model_configs_with_shape.items():
-            self.build_and_load_engine(
+            self._prepare_engine(
                 role,
                 model_id,
                 precision,
@@ -387,12 +481,20 @@ class FluxPipeline(Pipeline):
                 extra_args,
             )
 
+        if self.weight_offload != "none":
+            for engine in self.engines.values():
+                engine.load()
+
         if self.verbose:
             logger.info(f"\nAll engines loaded for {self.pipeline_name}")
             self.path_manager.print_cache_summary()
 
         logger.info("Activating engines...")
-        jit_times = self.activate_engines() if not self.low_vram else {}
+        if self.weight_offload != "none":
+            jit_times = self._initialize_weight_offloading()
+            self._native_build_shapes = (opt_batch_size, opt_height, opt_width)
+        else:
+            jit_times = self.activate_engines()
         logger.info("Engines activated successfully")
         return jit_times
 
@@ -406,6 +508,11 @@ class FluxPipeline(Pipeline):
         """Check if engines need recompilation due to shape changes and refresh them."""
         if not self.engines or not self.shape_config:
             raise ValueError("No engines loaded, cannot refresh engines, please call load_engines first")
+        if self.weight_offload != "none":
+            if extra_args:
+                raise ValueError("Safetensors weight offload does not accept Polygraphy arguments")
+            self._get_validated_input_shapes(opt_batch_size, opt_height, opt_width)
+            return False
 
         engines_to_refresh = []
         model_configs = self._get_model_configs()
@@ -437,13 +544,13 @@ class FluxPipeline(Pipeline):
             return False
 
         # Calculate current and new max workspace requirements
-        current_max_workspace = None if self.low_vram else self.calculate_max_device_memory()
+        current_max_workspace = self.calculate_max_device_memory()
 
         # Rebuild any engines for which a shape change was detected
         for role in engines_to_refresh:
             logger.debug(f"Rebuilding engine: {role}")
             model_id, precision = model_configs[role]
-            self.build_and_load_engine(
+            self._prepare_engine(
                 role,
                 model_id,
                 precision,
@@ -453,10 +560,6 @@ class FluxPipeline(Pipeline):
                 opt_width,
                 extra_args,
             )
-
-        # In Low-VRAM mode, can terminate here
-        if self.low_vram:
-            return True
 
         new_max_workspace = self.calculate_max_device_memory()
 
@@ -492,6 +595,49 @@ class FluxPipeline(Pipeline):
 
         return True
 
+    def _get_validated_input_shapes(self, batch, height, width):
+        """Validate all component input shapes before modifying execution contexts."""
+        # Full-weight inference rebuilds incompatible engines in refresh_engines().
+        # Offloading reuses existing engines, so reject shapes outside their supported profiles.
+        if "dynamic" not in self.shape_config.values() and self._native_build_shapes != (batch, height, width):
+            raise RuntimeError("Shape changes require reloading the native weightless pipeline")
+        if batch < 1 or min(height, width) < 1 or height % 16 or width % 16:
+            raise ValueError("Native FLUX requires a positive batch and image dimensions divisible by 16")
+        if "dynamic" in self.shape_config.values():
+            params = self.model_params
+            if not (
+                params.MIN_BATCH_SIZE <= batch <= params.MAX_BATCH_SIZE
+                and params.MIN_HEIGHT <= height <= params.MAX_HEIGHT
+                and params.MIN_WIDTH <= width <= params.MAX_WIDTH
+            ):
+                raise ValueError("Requested shape is outside the native FLUX dynamic profile")
+        shapes = {}
+        for role, engine in self.engines.items():
+            model = self.model_instances[role]
+            requested = (
+                model.get_shape_dict(batch)
+                if role.endswith("text_encoder")
+                else model.get_shape_dict(batch, height, width)
+            )
+            inputs = {}
+            for i in range(engine.engine.num_io_tensors):
+                name = engine.engine.get_tensor_name(i)
+                if engine.engine.get_tensor_mode(name) != trt.TensorIOMode.INPUT:
+                    continue
+                shape = tuple(requested[name])
+                declared = tuple(engine.engine.get_tensor_shape(name))
+                if -1 in declared:
+                    minimum, _, maximum = engine.engine.get_tensor_profile_shape(name, 0)
+                else:
+                    minimum = maximum = declared
+                if len(shape) != len(declared) or any(
+                    not low <= dim <= high for dim, low, high in zip(shape, minimum, maximum)
+                ):
+                    raise ValueError(f"Requested shape {shape} is outside the profile for {role}/{name}")
+                inputs[name] = shape
+            shapes[role] = inputs
+        return shapes
+
     def load_resources(self, batch_size: int = 1, height: int = 512, width: int = 512) -> None:
         """
         Allocate buffers and stream for inference
@@ -502,6 +648,9 @@ class FluxPipeline(Pipeline):
             width: The width of the generated images
         """
         logger.debug(f"Loading resources for {width}x{height} resolution and {batch_size} batch size...")
+        managed_shapes = (
+            self._get_validated_input_shapes(batch_size, height, width) if self.weight_offload != "none" else None
+        )
 
         # Initialize CUDA stream
         if self.stream is None:
@@ -525,15 +674,22 @@ class FluxPipeline(Pipeline):
 
         # Allocate tensors for each engine
         for model_name, engine in self.engines.items():
-            if model_name.endswith("text_encoder"):
+            if self.weight_offload != "none":
+                for name, shape in managed_shapes[model_name].items():
+                    if not engine.context.set_input_shape(name, shape):
+                        raise ValueError(f"Cannot set native input shape for {model_name}/{name}: {shape}")
+                shape_dict = {
+                    engine.engine.get_tensor_name(i): tuple(
+                        engine.context.get_tensor_shape(engine.engine.get_tensor_name(i))
+                    )
+                    for i in range(engine.engine.num_io_tensors)
+                }
+                if any(dim < 0 for shape in shape_dict.values() for dim in shape):
+                    raise RuntimeError(f"Unresolved native tensor shapes for {model_name}")
+            elif model_name.endswith("text_encoder"):
                 shape_dict = self.model_instances[model_name].get_shape_dict(batch_size)
             else:
                 shape_dict = self.model_instances[model_name].get_shape_dict(batch_size, height, width)
-
-            # If low VRAM mode is enabled, store the shape dict but don't allocate buffers
-            if self.low_vram:
-                self.shape_dicts[model_name] = shape_dict
-                continue
 
             if deallocate_existing:
                 engine.deallocate_buffers()
@@ -549,6 +705,25 @@ class FluxPipeline(Pipeline):
             "height": height,
             "width": width,
         }
+
+    def print_gpu_vram_summary(self):
+        """Print the applicable VRAM allocation estimates."""
+        if self.managed_weights is None:
+            return super().print_gpu_vram_summary()
+
+        max_workspace = self.calculate_max_device_memory()
+        total_buffers = sum(
+            tensor.numel() * tensor.element_size()
+            for engine in self.engines.values()
+            for tensor in engine.tensors.values()
+        )
+        logger.info(
+            "[VRAM] Managed weight budget: %.2f GiB",
+            self.managed_weights.weight_budget / (1024**3),
+        )
+        logger.info("[VRAM] Shared workspace: %.2f GiB", max_workspace / (1024**3))
+        logger.info("[VRAM] Preallocated I/O buffers: %.2f GiB", total_buffers / (1024**3))
+        logger.info("[VRAM] Runtime and intermediate allocations are not included in these estimates")
 
     def encode_prompt(
         self,
@@ -802,7 +977,8 @@ class FluxPipeline(Pipeline):
             self.guidance_scale = guidance_scale
 
         # Refresh engines if shape has changed
-        self.refresh_engines(batch_size, height, width)
+        if self.weight_offload == "none":
+            self.refresh_engines(batch_size, height, width)
 
         # Ensure resources are loaded if the shape has changed
         self.load_resources(batch_size, height, width)
@@ -810,11 +986,11 @@ class FluxPipeline(Pipeline):
         start_time = time.time()
 
         # Encode prompts
-        with self.model_memory_manager("t5_text_encoder", self.low_vram):
+        with self._use_model_weights("t5_text_encoder"):
             t5_embeds = self.encode_prompt(prompt, "t5_text_encoder")
 
         # Get pooled embeddings from CLIP
-        with self.model_memory_manager("clip_text_encoder", self.low_vram):
+        with self._use_model_weights("clip_text_encoder"):
             pooled_embeds = self.encode_prompt(prompt, "clip_text_encoder", pooled_output=True)
 
         # Initialize latents
@@ -847,12 +1023,12 @@ class FluxPipeline(Pipeline):
         )
 
         # Denoise latents
-        with self.model_memory_manager("transformer", self.low_vram):
+        with self._use_model_weights("transformer"):
             latents = self.denoise_latents(latents, t5_embeds, pooled_embeds)
         del t5_embeds, pooled_embeds
 
         # Decode to images
-        with self.model_memory_manager("vae_decoder", self.low_vram):
+        with self._use_model_weights("vae_decoder"):
             images_gpu = self.decode_latents(latents)
         del latents
 
@@ -884,6 +1060,12 @@ class FluxPipeline(Pipeline):
         """Clean up all resources"""
         if hasattr(self, "generator"):
             del self.generator
+
+        if self.managed_weights is not None:
+            self.managed_weights.close()
+            self.managed_weights = None
+        self._managed_checkpoints.clear()
+        self._native_build_shapes = None
 
         super().cleanup()
 

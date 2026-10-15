@@ -1,0 +1,15 @@
+accelerate
+--extra-index-url https://download.pytorch.org/whl/cu132
+torch>=2.14.0
+torch-tensorrt-rtx>=2.14.0
+nvidia-modelopt>=0.47.0
+transformers>=4.52.4
+diffusers>=0.37.0
+huggingface-hub>=0.32.4
+safetensors
+pillow
+
+# Jupyter dependencies
+ipython>=8.0.0
+ipywidgets>=8.0.0
+jupyter

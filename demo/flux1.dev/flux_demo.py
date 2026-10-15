@@ -24,14 +24,17 @@ import logging
 import sys
 from pathlib import Path
 
-try:
-    from pipelines.flux_pipeline import FluxPipeline
-except ImportError:
-    sys.path.append(str(Path(__file__).parent.parent))
-    from pipelines.flux_pipeline import FluxPipeline
-
-
 logger = logging.getLogger("rtx_demo.flux1.dev.flux_demo")
+
+
+def load_pipeline_class():
+    """Import the pipeline after parsing so ``--help`` needs no runtime stack."""
+    try:
+        from pipelines.flux_pipeline import FluxPipeline
+    except ImportError:
+        sys.path.append(str(Path(__file__).parent.parent))
+        from pipelines.flux_pipeline import FluxPipeline
+    return FluxPipeline
 
 
 def main():
@@ -69,7 +72,17 @@ def main():
         help="Cuda graph strategy (default: disabled)",
         choices=["disabled", "whole_graph_capture"],
     )
-    parser.add_argument("--low-vram", action="store_true", help="Enable low VRAM mode")
+    parser.add_argument(
+        "--weight-offload",
+        choices=["none", "buffer", "vmm"],
+        default="none",
+        help="Managed-weight backend for inactive engines (default: none)",
+    )
+    parser.add_argument(
+        "--weight-offload-pinned-host",
+        action="store_true",
+        help="Prepare all managed weights in pinned host RAM during setup (requires offloading; uses extra host RAM)",
+    )
     parser.add_argument("--dynamic-shape", action="store_true", default=False, help="Enable dynamic-shape engines")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
     parser.add_argument(
@@ -79,7 +92,10 @@ def main():
         "--cache-mode", type=str, default="full", help="Cache mode (default: full)", choices=["full", "lean"]
     )
     args = parser.parse_args()
+    if args.weight_offload_pinned_host and args.weight_offload == "none":
+        parser.error("--weight-offload-pinned-host requires --weight-offload buffer or vmm")
 
+    FluxPipeline = load_pipeline_class()
     try:
         pipeline = FluxPipeline(
             cache_dir=args.cache_dir,
@@ -89,9 +105,10 @@ def main():
             guidance_scale=args.guidance_scale,
             num_inference_steps=args.num_inference_steps,
             hf_token=args.hf_token,
-            low_vram=args.low_vram,
             cuda_graph_strategy=args.cuda_graph_strategy,
             enable_runtime_cache=args.enable_runtime_cache,
+            weight_offload=args.weight_offload,
+            weight_offload_pinned_host=args.weight_offload_pinned_host,
         )
 
         # Print header and configuration
@@ -106,7 +123,9 @@ def main():
         logger.info(f"Inference steps: {args.num_inference_steps}")
         logger.info(f"Guidance scale: {args.guidance_scale}")
         logger.info(f"Cache directory: {args.cache_dir}")
-        logger.info(f"Low VRAM mode: {args.low_vram}")
+        logger.info(f"Weight offload: {args.weight_offload}")
+        if args.weight_offload != "none":
+            logger.info(f"Weight offload pinned host: {args.weight_offload_pinned_host}")
         logger.info(f"Cudagraphs: {args.cuda_graph_strategy}")
         logger.info(f"Dynamic shape: {args.dynamic_shape}")
         logger.info(f"Runtime caching: {args.enable_runtime_cache}")
@@ -131,8 +150,7 @@ def main():
         )
 
         # Print memory usage summary
-        if not args.low_vram:
-            pipeline.print_gpu_vram_summary()
+        pipeline.print_gpu_vram_summary()
 
         # Run inference
         logger.info("Generating image...")

@@ -175,10 +175,11 @@ class PathManager:
         model_dir = self._ensure_model_directory_exists(model_id, precision, "onnx")
         return model_dir / f"{model_id}.onnx"
 
-    def get_engine_path(self, model_id: str, precision: str, shape_mode: str) -> Path:
+    def get_engine_path(self, model_id: str, precision: str, shape_mode: str, weightless: bool = False) -> Path:
         """Get engine file path in shared directory."""
         model_dir = self._ensure_model_directory_exists(model_id, precision, "engine")
-        return model_dir / f"{model_id}_{shape_mode}.engine"
+        variant = "_weightless" if weightless else ""
+        return model_dir / f"{model_id}{variant}_{shape_mode}.engine"
 
     def get_metadata_path(self, model_id: str, precision: str, shape_mode: str) -> Path:
         """Get metadata file path in shared directory."""
@@ -189,12 +190,26 @@ class PathManager:
         """Get the directory containing model files."""
         return self._ensure_model_directory_exists(model_id, precision, file_type)
 
+    def _get_engine_cache_paths(self, model_id: str, precision: str, shape_mode: str) -> list[Path]:
+        """Enumerate engine variants and their sidecars for one model and shape mode."""
+        paths = [
+            self.get_engine_path(model_id, precision, shape_mode),
+            self.get_metadata_path(model_id, precision, shape_mode),
+        ]
+        weightless = self.get_engine_path(model_id, precision, shape_mode, weightless=True)
+        native = weightless.with_name(weightless.stem + ".safetensors" + weightless.suffix)
+        for plan in (weightless, native):
+            paths.append(plan)
+            paths.extend(plan.with_suffix(suffix) for suffix in (".checkpoint.json", ".weights.json", ".weights.bin"))
+        return paths
+
     def check_cached_files(self, model_id: str, precision: str, shape_mode: str) -> dict:
         """Check which files exist in cache."""
+        engine_files = self._get_engine_cache_paths(model_id, precision, shape_mode)
         return {
             "onnx": self.get_onnx_path(model_id, precision).exists(),
-            "engine": self.get_engine_path(model_id, precision, shape_mode).exists(),
-            "metadata": self.get_metadata_path(model_id, precision, shape_mode).exists(),
+            "engine": any(path.suffix == ".engine" and path.exists() for path in engine_files),
+            "metadata": any(path.suffix == ".json" and path.exists() for path in engine_files),
         }
 
     def _safe_delete_file(self, file_path: Path) -> bool:
@@ -204,7 +219,7 @@ class PathManager:
 
         # Check if this is a known safe cache file type
         file_name = file_path.name.lower()
-        safe_endings = {".onnx", ".engine", ".json", ".data", ".onnx_data", ".onnx.data"}
+        safe_endings = {".onnx", ".engine", ".json", ".data", ".onnx_data", ".onnx.data", ".weights.bin"}
         is_safe = any(file_name.endswith(ending) for ending in safe_endings)
 
         if is_safe:
@@ -238,10 +253,7 @@ class PathManager:
         """Delete cached engine files for a model."""
         logger.debug(f"Deleting cached {shape_mode} engine files for {model_id}_{precision}")
 
-        files_to_delete = [
-            self.get_engine_path(model_id, precision, shape_mode),
-            self.get_metadata_path(model_id, precision, shape_mode),
-        ]
+        files_to_delete = self._get_engine_cache_paths(model_id, precision, shape_mode)
 
         try:
             for file_path in files_to_delete:
@@ -499,13 +511,8 @@ class PathManager:
         logger.debug(f"Cleaning up unused model: {model_id}_{precision}_{shape_mode}")
 
         files_exist = self.check_cached_files(model_id, precision, shape_mode)
-
-        if not any(files_exist.values()):
-            return
-
-        # Always delete engine files for this specific shape_mode
-        if files_exist["engine"] or files_exist["metadata"]:
-            self.delete_cached_engine_files(model_id, precision, shape_mode)
+        # Remove orphaned weight backups even when the engine or manifest is missing.
+        self.delete_cached_engine_files(model_id, precision, shape_mode)
 
         # Only delete ONNX files if no other shape_mode of this model is still active
         if files_exist["onnx"]:

@@ -57,7 +57,6 @@ class Pipeline(ABC):
         cache_mode: str = "full",
         enable_timing: bool = True,
         hf_token: Optional[str] = None,
-        low_vram: bool = False,
         log_level: str = "INFO",
         enable_runtime_cache: bool = False,
         cuda_graph_strategy: str = "disabled",
@@ -73,7 +72,6 @@ class Pipeline(ABC):
             cache_mode: Cache management mode ("full" or "lean")
             enable_timing: Enable verbose timing
             hf_token: Hugging Face token
-            low_vram: Enable low VRAM mode
             log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
             enable_runtime_cache: Enable use of serialized runtime cache to improve JIT compilation times
             cuda_graph_strategy: Enable use of Cudagraphs for accelerated inference (disabled, whole_graph_capture)
@@ -90,7 +88,6 @@ class Pipeline(ABC):
         self.device = device
         self.verbose = verbose
         self.hf_token = hf_token
-        self.low_vram = low_vram
         self.enable_runtime_cache = enable_runtime_cache
 
         assert cuda_graph_strategy in ["disabled", "whole_graph_capture"], (
@@ -107,7 +104,6 @@ class Pipeline(ABC):
         # Pipeline state
         self.engines = {}
         self.model_instances = {}
-        self.shape_dicts = {}
         self.shape_config = {}
         self.current_shapes = {}
         self.stream = None

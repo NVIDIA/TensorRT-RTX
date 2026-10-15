@@ -74,3 +74,60 @@ class TestCacheSafety:
         # Test 4: Verify file paths are different
         canonical_path = path_manager.get_onnx_path("my_model", "fp16")
         assert original_onnx.parent != canonical_path.parent, "Original and cache directories should be different"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("variant", ["full", "weightless", "native"])
+@pytest.mark.parametrize("shape_mode", ["static", "dynamic"])
+def test_cache_helpers_cover_engine_variants(path_manager, variant, shape_mode):
+    """Find and delete one shape's engine artifacts without touching neighboring files."""
+    plan = path_manager.get_engine_path("transformer", "fp8", shape_mode, weightless=variant != "full")
+    if variant == "native":
+        plan = plan.with_name(plan.stem + ".safetensors" + plan.suffix)
+    artifacts = [plan]
+    if variant == "full":
+        artifacts.append(path_manager.get_metadata_path("transformer", "fp8", shape_mode))
+    else:
+        artifacts.extend(plan.with_suffix(suffix) for suffix in (".checkpoint.json", ".weights.json", ".weights.bin"))
+    other_shape = "dynamic" if shape_mode == "static" else "static"
+    other_plan = path_manager.get_engine_path("transformer", "fp8", other_shape, weightless=True)
+    other_plan = other_plan.with_name(other_plan.stem + ".safetensors" + other_plan.suffix)
+    protected = [
+        other_plan,
+        other_plan.with_suffix(".weights.bin"),
+        path_manager.get_engine_path("transformer", "bf16", shape_mode, weightless=True),
+        path_manager.get_engine_path("clip", "fp8", shape_mode, weightless=True),
+        plan.parent / "unrelated.bin",
+        plan.parent / "unrelated.json",
+    ]
+    for path in artifacts + protected:
+        path.write_bytes(b"test")
+
+    status = path_manager.check_cached_files("transformer", "fp8", shape_mode)
+    assert status["engine"] and status["metadata"]
+    path_manager.delete_cached_engine_files("transformer", "fp8", shape_mode)
+    assert not any(path.exists() for path in artifacts)
+    assert all(path.exists() for path in protected)
+    status = path_manager.check_cached_files("transformer", "fp8", shape_mode)
+    assert not status["engine"] and not status["metadata"]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("suffix", [".checkpoint.json", ".weights.json", ".weights.bin"])
+def test_lean_cleanup_removes_orphaned_weightless_artifacts(path_manager, suffix):
+    """Missing engine plans must not prevent cleanup of their remaining sidecars."""
+    base = path_manager.get_engine_path("transformer", "fp8", "static", weightless=True)
+    plan = base.with_name(base.stem + ".safetensors" + base.suffix)
+    artifact = plan.with_suffix(suffix)
+    artifact.touch()
+    path_manager._cleanup_unused_model("transformer", "fp8", "static")
+    assert not artifact.exists()
+
+
+@pytest.mark.unit
+def test_cache_deletion_rejects_unrelated_binary_files(path_manager, tmp_path):
+    """Allowing weight backups must not allow arbitrary binary files to be deleted."""
+    unrelated = tmp_path / "user.bin"
+    unrelated.touch()
+    assert not path_manager._safe_delete_file(unrelated)
+    assert unrelated.exists()
